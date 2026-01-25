@@ -1,0 +1,73 @@
+[MAIN]
+# Specify a score threshold under which the program will exit with error.
+fail-under=10.0
+
+# Use multiple processes to speed up Pylint.
+jobs=1
+
+# When enabled, pylint would attempt to guess common misconfiguration and emit
+# user-friendly hints instead of false-positive error messages.
+suggestion-mode=yes
+
+[MESSAGES CONTROL]
+# Disable the message, report, category or checker with the given id(s).
+disable=
+    C0301,  # line-too-long - handled by formatter
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    C0103,  # invalid-name (single letter variables, constants)
+    C0104,  # disallowed-name
+    C0411,  # wrong-import-order - handled by isort
+    C0413,  # wrong-import-position
+    C0415,  # import-outside-toplevel - sometimes necessary
+    W0603,  # global-statement - singleton pattern
+    W0612,  # unused-variable - sometimes needed for tuple unpacking
+    W0613,  # unused-argument - sometimes needed for interface compliance
+    W0718,  # broad-exception-caught - sometimes necessary
+    R0801,  # duplicate-code - false positives with similar patterns
+    R0902,  # too-many-instance-attributes
+    R0903,  # too-few-public-methods - data classes
+    R0911,  # too-many-return-statements
+    R0912,  # too-many-branches
+    R0913,  # too-many-arguments
+    R0914,  # too-many-locals
+    R0915,  # too-many-statements
+    R1705,  # no-else-return - style preference
+    W1514,  # unspecified-encoding
+    W0123,  # eval-used - needed for policy engine
+    E0712,  # catching-non-exception - false positive with tuple exceptions
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=120
+
+[DESIGN]
+# Maximum number of arguments for function / method.
+max-args=10
+
+# Maximum number of attributes for a class (see R0902).
+max-attributes=15
+
+# Maximum number of branch for function / method body.
+max-branches=20
+
+# Maximum number of locals for function / method body.
+max-locals=25
+
+# Maximum number of statements in function / method body.
+max-statements=100
+
+[SIMILARITIES]
+# Minimum lines number of a similarity.
+min-similarity-lines=10
+
+# Ignore imports when computing similarities.
+ignore-imports=yes
+
+[BASIC]
+# Good variable names which should always be accepted.
+good-names=i,j,k,n,e,f,q,r,d,x,y,ex,_,db,id
+
+# Good variable names regexes, separated by a comma.
+good-names-rgxs=^[_a-z][_a-z0-9]?$

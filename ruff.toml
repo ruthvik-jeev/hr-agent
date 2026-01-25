@@ -1,0 +1,13 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+ignore = [
+    "E402",  # Module level import not at top of file - needed for env setup
+    "E501",  # Line too long - handled by formatter
+]
+
+[lint.per-file-ignores]
+"run_evals.py" = ["E402"]
+"test_tools.py" = ["E402"]
+"evals/runner.py" = ["E402"]
