@@ -9,10 +9,17 @@ Architecture (Reorganized):
 - api/: FastAPI REST endpoints
 - infrastructure/: Config, database, observability, security, errors
 - policies/: YAML policy configurations
+
+Supports both:
+- Original HRAgent (custom implementation)
+- HRAgentLangGraph (LangChain/LangGraph-based)
 """
 
-# Core
+# Core - Original Agent
 from .core.agent import HRAgent
+
+# Core - LangGraph Agent
+from .core.langgraph_agent import HRAgentLangGraph, run_hr_agent
 
 # Services
 from .services import (
@@ -26,8 +33,11 @@ from .services import (
     CompanyService,
 )
 
-# Tool Registry
+# Tool Registry (Legacy)
 from .services.tool_registry import get_tool_registry, ToolRegistry, ToolDefinition
+
+# LangChain Tools
+from .services.langchain_tools import get_all_tools as get_hr_tools
 
 # Domain Models
 from .domain.models import (
@@ -49,8 +59,10 @@ from .infrastructure.errors import (
 )
 
 __all__ = [
-    # Agent
-    "HRAgent",
+    # Agents
+    "HRAgent",  # Original
+    "HRAgentLangGraph",  # LangGraph-based
+    "run_hr_agent",  # LangGraph runner
     # Services
     "get_employee_service",
     "get_holiday_service",
@@ -63,10 +75,12 @@ __all__ = [
     # Registry
     "registry",
     "AppRegistry",
-    # Tool Registry
+    # Tool Registry (Legacy)
     "get_tool_registry",
     "ToolRegistry",
     "ToolDefinition",
+    # LangChain Tools
+    "get_hr_tools",
     # Models
     "UserRole",
     "HolidayRequestStatus",

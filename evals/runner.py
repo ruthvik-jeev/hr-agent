@@ -215,7 +215,9 @@ class EvalRunner:
         result.passed = False
         return result
 
-    def _extract_tool_calls(self, agent: HRAgent | HRAgentLangGraph, query: str) -> list[str]:
+    def _extract_tool_calls(
+        self, agent: HRAgent | HRAgentLangGraph, query: str
+    ) -> list[str]:
         """Extract which tools were called during agent execution."""
         tools = []
 
@@ -383,7 +385,10 @@ def run_evals(
         EvalMetrics with all results and statistics
     """
     runner = EvalRunner(
-        dataset=dataset, parallel=parallel, verbose=verbose, log_level=log_level,
+        dataset=dataset,
+        parallel=parallel,
+        verbose=verbose,
+        log_level=log_level,
         agent_type=agent_type,
     )
     metrics = runner.run()
@@ -394,12 +399,16 @@ def run_evals(
         agent_suffix = f"_{agent_type}"
 
         # Save summary
-        summary_path = os.path.join(output_dir, f"eval_summary_{timestamp}{agent_suffix}.json")
+        summary_path = os.path.join(
+            output_dir, f"eval_summary_{timestamp}{agent_suffix}.json"
+        )
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(metrics.summary(), f, indent=2)
 
         # Save detailed results
-        results_path = os.path.join(output_dir, f"eval_results_{timestamp}{agent_suffix}.json")
+        results_path = os.path.join(
+            output_dir, f"eval_results_{timestamp}{agent_suffix}.json"
+        )
         with open(results_path, "w", encoding="utf-8") as f:
             json.dump([r.to_dict() for r in metrics.results], f, indent=2, default=str)
 
