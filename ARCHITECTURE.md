@@ -11,18 +11,20 @@
   'theme': 'base',
   'themeVariables': {
     'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#0d2137',
+    'primaryTextColor': '#1e3a5f',
+    'primaryBorderColor': '#1e3a5f',
     'lineColor': '#3d5a80',
     'secondaryColor': '#e8f4f8',
     'tertiaryColor': '#f0f4f8',
     'background': '#ffffff',
     'mainBkg': '#ffffff',
     'nodeBorder': '#3d5a80',
+    'nodeTextColor': '#1e3a5f',
     'clusterBkg': '#f7f9fc',
     'clusterBorder': '#3d5a80',
     'titleColor': '#1e3a5f',
-    'edgeLabelBackground': '#ffffff'
+    'edgeLabelBackground': '#ffffff',
+    'textColor': '#1e3a5f'
   }
 }}%%
 
@@ -82,11 +84,11 @@ flowchart TB
     INFRA -.-> CORE
     TRACE -.-> AGENT
 
-    style CLIENTS fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px
-    style CORE fill:#f0f4f8,stroke:#1e3a5f,stroke-width:3px
-    style SERVICES fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px
-    style DATA fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px
-    style INFRA fill:#f0f4f8,stroke:#6b7280,stroke-width:2px
+    style CLIENTS fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
+    style CORE fill:#f0f4f8,stroke:#1e3a5f,stroke-width:3px,color:#1e3a5f
+    style SERVICES fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
+    style DATA fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
+    style INFRA fill:#f0f4f8,stroke:#6b7280,stroke-width:2px,color:#1e3a5f
 ```
 
 ---
@@ -99,13 +101,20 @@ The agent follows a **ReAct pattern** with policy-based authorization:
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#0d2137',
+    'primaryColor': '#e8f4f8',
+    'primaryTextColor': '#1e3a5f',
+    'primaryBorderColor': '#1e3a5f',
     'lineColor': '#3d5a80',
-    'secondaryColor': '#e8f4f8',
-    'tertiaryColor': '#f0f4f8',
-    'background': '#ffffff'
+    'secondaryColor': '#f0f4f8',
+    'tertiaryColor': '#f7f9fc',
+    'stateBkg': '#e8f4f8',
+    'stateLabelColor': '#1e3a5f',
+    'transitionColor': '#3d5a80',
+    'transitionLabelColor': '#1e3a5f',
+    'textColor': '#1e3a5f',
+    'noteTextColor': '#1e3a5f',
+    'noteBkgColor': '#f7f9fc',
+    'noteBorderColor': '#3d5a80'
   }
 }}%%
 
@@ -156,10 +165,12 @@ stateDiagram-v2
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#0d2137',
-    'lineColor': '#3d5a80'
+    'primaryColor': '#e8f4f8',
+    'primaryTextColor': '#1e3a5f',
+    'primaryBorderColor': '#1e3a5f',
+    'lineColor': '#3d5a80',
+    'textColor': '#1e3a5f',
+    'classText': '#1e3a5f'
   }
 }}%%
 
@@ -211,10 +222,12 @@ classDiagram
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#0d2137',
-    'lineColor': '#3d5a80'
+    'primaryColor': '#e8f4f8',
+    'primaryTextColor': '#1e3a5f',
+    'primaryBorderColor': '#1e3a5f',
+    'lineColor': '#3d5a80',
+    'textColor': '#1e3a5f',
+    'nodeTextColor': '#1e3a5f'
   }
 }}%%
 
@@ -260,12 +273,12 @@ flowchart LR
     HOL_TOOLS --> CONFIRM
     COMP_TOOLS --> RESTRICT
 
-    style TOOLS fill:#f0f4f8,stroke:#1e3a5f,stroke-width:2px
-    style ACCESS fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px
-    style EMP_TOOLS fill:#e8f4f8,stroke:#3d5a80
-    style HOL_TOOLS fill:#e8f4f8,stroke:#3d5a80
-    style COMP_TOOLS fill:#e8f4f8,stroke:#3d5a80
-    style COMPANY_TOOLS fill:#e8f4f8,stroke:#3d5a80
+    style TOOLS fill:#f0f4f8,stroke:#1e3a5f,stroke-width:2px,color:#1e3a5f
+    style ACCESS fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
+    style EMP_TOOLS fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
+    style HOL_TOOLS fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
+    style COMP_TOOLS fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
+    style COMPANY_TOOLS fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
 ```
 
 ---
@@ -276,13 +289,24 @@ flowchart LR
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#0d2137',
+    'primaryColor': '#e8f4f8',
+    'primaryTextColor': '#1e3a5f',
+    'primaryBorderColor': '#1e3a5f',
     'lineColor': '#3d5a80',
+    'actorBkg': '#e8f4f8',
+    'actorBorder': '#1e3a5f',
+    'actorTextColor': '#1e3a5f',
     'actorLineColor': '#3d5a80',
-    'signalColor': '#1e3a5f',
-    'signalTextColor': '#1e3a5f'
+    'signalColor': '#3d5a80',
+    'signalTextColor': '#1e3a5f',
+    'labelTextColor': '#1e3a5f',
+    'loopTextColor': '#1e3a5f',
+    'noteTextColor': '#1e3a5f',
+    'noteBkgColor': '#f7f9fc',
+    'noteBorderColor': '#3d5a80',
+    'activationBkgColor': '#e8f4f8',
+    'activationBorderColor': '#1e3a5f',
+    'sequenceNumberColor': '#ffffff'
   }
 }}%%
 
