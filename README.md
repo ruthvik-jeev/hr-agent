@@ -1,8 +1,21 @@
 # HR Agent
 
-A production-ready HR assistant built with **LangChain**, **LangGraph**, and **LangSmith**. Demonstrates best practices in LLM-based agent design with policy-based authorization and comprehensive evaluation.
+<div align="center">
 
-## Quick Start
+![LangChain](https://img.shields.io/badge/LangChain-0.3+-1e3a5f?style=for-the-badge&logo=langchain&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-Stateful-3d5a80?style=for-the-badge)
+![LangSmith](https://img.shields.io/badge/LangSmith-Tracing-5c7999?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+
+**A production-ready HR assistant demonstrating best practices in LLM agent design**
+
+[Quick Start](#-quick-start) • [Architecture](#-architecture) • [Features](#-key-features) • [Evaluation](#-evaluation)
+
+</div>
+
+---
+
+## 🚀 Quick Start
 
 ```bash
 # Clone and setup
@@ -12,106 +25,211 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# Set your API key
+# Configure
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env with your LLM API key
 
 # Run the Web UI
 streamlit run app.py
 ```
 
-## Key Features
+---
 
-| Capability | Description |
-|------------|-------------|
-| **LangGraph Workflow** | State-based agent with conditional routing |
-| **LangChain Tools** | 25+ HR tools with Pydantic schemas |
-| **LangSmith Tracing** | Full observability and experiment tracking |
-| **Policy Authorization** | Declarative YAML-based access control |
-| **Evaluation Framework** | Built-in testing with 40+ test cases |
+## ✨ Key Features
 
-## Architecture
+| Feature | Description |
+|---------|-------------|
+| 🔄 **LangGraph Workflow** | Stateful agent with conditional routing and checkpointing |
+| 🛠️ **LangChain Tools** | 25 HR tools with Pydantic validation |
+| 📊 **LangSmith Tracing** | Full observability, debugging, and experiment tracking |
+| 🔐 **Policy Authorization** | Declarative YAML-based access control |
+| 🧪 **Evaluation Framework** | 40+ test cases with automated scoring |
 
+---
+
+## 🏗️ Architecture
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1e3a5f', 'primaryTextColor': '#fff', 'primaryBorderColor': '#0d2137', 'lineColor': '#3d5a80', 'secondaryColor': '#e8f4f8'}}}%%
+
+flowchart TB
+    subgraph CLIENT["Clients"]
+        WEB["Web UI"]
+        CLI["CLI"]
+        API["REST API"]
+    end
+    
+    subgraph AGENT["LangGraph Agent"]
+        direction LR
+        LLM["Agent<br/>Node"] --> AUTH["Auth<br/>Check"]
+        AUTH -->|allowed| TOOLS["Tool<br/>Execution"]
+        AUTH -->|denied| LLM
+        TOOLS --> LLM
+    end
+    
+    subgraph SERVICES["Services"]
+        direction LR
+        S1["Employee"]
+        S2["Holiday"]
+        S3["Compensation"]
+    end
+    
+    subgraph DATA["Data"]
+        DB[("Database")]
+    end
+    
+    CLIENT --> AGENT
+    AGENT --> SERVICES
+    SERVICES --> DATA
+    
+    style CLIENT fill:#e8f4f8,stroke:#3d5a80
+    style AGENT fill:#f0f4f8,stroke:#1e3a5f,stroke-width:3px
+    style SERVICES fill:#e8f4f8,stroke:#3d5a80
+    style DATA fill:#f7f9fc,stroke:#6b7280
 ```
-╔═══════════════════════════════════════════════════════════════╗
-║                    LANGGRAPH WORKFLOW                         ║
-║                                                               ║
-║   ┌─────────┐    ┌────────────┐    ┌─────────┐               ║
-║   │  AGENT  │───►│ CHECK_AUTH │───►│  TOOLS  │               ║
-║   │  (LLM)  │    │  (Policy)  │    │(Execute)│               ║
-║   └────▲────┘    └─────┬──────┘    └────┬────┘               ║
-║        │               │ denied         │                     ║
-║        │               ▼                │                     ║
-║        │         [Error Msg]            │                     ║
-║        └────────────────────────────────┘                     ║
-╚═══════════════════════════════════════════════════════════════╝
+
+### How It Works
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1e3a5f', 'primaryTextColor': '#fff', 'lineColor': '#3d5a80', 'actorLineColor': '#3d5a80', 'signalColor': '#1e3a5f'}}}%%
+
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant P as Policy
+    participant T as Tools
+    participant D as Database
+
+    U->>A: "What's my holiday balance?"
+    A->>A: Decide: get_holiday_balance
+    A->>P: Check authorization
+    P-->>A: Allowed
+    A->>T: Execute tool
+    T->>D: Query data
+    D-->>T: 15 days remaining
+    T-->>A: Result
+    A-->>U: "You have 15 vacation days left"
 ```
 
-## Running Evaluations
+---
 
-```bash
-# Quick test (10 cases)
-python run_evals.py --quick
-
-# Full evaluation
-python run_evals.py --verbose
-
-# Compare agents
-python compare_agents.py --save
-```
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 hr-agent/
-├── app.py                    # Streamlit Web UI
-├── run_evals.py              # Evaluation runner
-├── compare_agents.py         # Agent comparison
+├── 📄 app.py                    # Streamlit Web UI
+├── 📄 run_evals.py              # Evaluation runner
 │
-├── src/hr_agent/
-│   ├── core/
-│   │   ├── langgraph_agent.py   # LangGraph workflow (primary)
-│   │   ├── policy_engine.py     # Authorization
-│   │   └── memory.py            # Conversation state
+├── 📁 src/hr_agent/
+│   ├── 📁 core/
+│   │   ├── langgraph_agent.py   # LangGraph workflow
+│   │   └── policy_engine.py     # Authorization
 │   │
-│   ├── services/
-│   │   ├── langchain_tools.py   # LangChain tools
+│   ├── 📁 services/
+│   │   ├── langchain_tools.py   # 25 LangChain tools
 │   │   └── base.py              # Service classes
 │   │
-│   ├── repositories/            # Data access
-│   ├── api/                     # REST API
-│   └── policies/                # Auth rules (YAML)
+│   ├── 📁 repositories/         # Data access layer
+│   ├── 📁 api/                  # REST API (FastAPI)
+│   └── 📁 policies/             # YAML auth rules
 │
-└── evals/                       # Evaluation framework
+└── 📁 evals/                    # Evaluation framework
 ```
 
-## Configuration
+---
+
+## 🧪 Evaluation
+
+```bash
+# Quick test (10 cases)
+python run_evals.py --quick --verbose
+
+# Full evaluation
+python run_evals.py
+
+# Filter by category
+python run_evals.py --category time_off
+```
+
+### Sample Output
+
+```
+======================================================================
+  📊 EVALUATION RESULTS
+======================================================================
+  Total Cases:      40
+  Passed:           38 / 40
+  Pass Rate:        95.0%
+
+  Accuracy Metrics
+  ----------------------------------------
+  Tool Selection     97.5%
+  Answer Quality     95.0%
+  Authorization      100.0%
+======================================================================
+```
+
+---
+
+## 🛠️ Available Tools
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1e3a5f', 'lineColor': '#3d5a80'}}}%%
+
+mindmap
+  root((HR Tools))
+    Employee
+      search_employee
+      get_employee_basic
+      get_employee_tenure
+    Organization
+      get_manager
+      get_direct_reports
+      get_org_chart
+      get_department_directory
+    Time Off
+      get_holiday_balance
+      submit_holiday_request
+      get_pending_approvals
+      get_team_calendar
+    Compensation
+      get_compensation
+      get_salary_history
+    Company
+      get_company_policies
+      get_announcements
+      get_company_holidays
+```
+
+---
+
+## ⚙️ Configuration
 
 ```bash
 # .env
-OPENAI_API_KEY=sk-...
+
+# LLM Provider
+LLM_PROVIDER=openai_compatible
+LLM_API_KEY=sk-...
 LLM_MODEL=gpt-4o-mini
 
-# Optional: LangSmith
+# Optional: LangSmith Tracing
 LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=ls-...
+LANGSMITH_API_KEY=lsv2_pt_...
+LANGSMITH_PROJECT=hr-agent
 ```
 
-## Available Tools
+---
 
-| Category | Tools |
-|----------|-------|
-| **Employee** | `search_employee`, `get_employee_basic`, `get_employee_tenure` |
-| **Organization** | `get_manager`, `get_direct_reports`, `get_org_chart` |
-| **Time Off** | `get_holiday_balance`, `submit_holiday_request`, `get_pending_approvals` |
-| **Compensation** | `get_compensation`, `get_salary_history` |
-| **Company** | `get_company_policies`, `get_announcements` |
+## 📚 Documentation
 
-## Documentation
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture, diagrams, design decisions |
+| [EVALUATION.md](EVALUATION.md) | Evaluation framework, metrics, test cases |
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture details
-- [EVALUATION.md](EVALUATION.md) - Evaluation framework guide
+---
 
-## License
+## 📄 License
 
 MIT
