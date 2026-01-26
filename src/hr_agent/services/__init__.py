@@ -50,6 +50,9 @@ from .tool_registry import (
     get_tool_registry,
 )
 
+# LangChain tools (import separately to avoid breaking existing code)
+from . import langchain_tools
+
 __all__ = [
     # Services
     "EmployeeService",
@@ -60,7 +63,7 @@ __all__ = [
     "get_holiday_service",
     "get_compensation_service",
     "get_company_service",
-    # Tool Functions
+    # Tool Functions (legacy)
     "search_employee",
     "get_employee_basic",
     "get_employee_tenure",
@@ -92,4 +95,6 @@ __all__ = [
     "ToolParameter",
     "ToolCategory",
     "get_tool_registry",
+    # LangChain tools module
+    "langchain_tools",
 ]
