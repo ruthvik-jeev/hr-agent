@@ -1,5 +1,7 @@
 """
 HR Agent Web UI - Streamlit Chat Interface
+
+Built with LangGraph for agent orchestration.
 """
 
 import streamlit as st
@@ -14,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from hr_agent.seed import seed_if_needed
-from hr_agent.core.agent import HRAgent
+from hr_agent.core.langgraph_agent import HRAgentLangGraph
 
 # Seed database if needed
 seed_if_needed()
@@ -164,7 +166,7 @@ if (
     "agent" not in st.session_state
     or st.session_state.get("current_email") != current_email
 ):
-    st.session_state.agent = HRAgent(current_email)
+    st.session_state.agent = HRAgentLangGraph(current_email)
     st.session_state.current_email = current_email
     st.session_state.messages = []  # Clear messages when user changes
 

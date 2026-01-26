@@ -3,10 +3,10 @@
 HR Agent Evaluation Script
 
 Run comprehensive evaluations of the HR agent and generate reports.
+Uses LangGraph-based agent.
 
 Usage:
-    python run_evals.py                    # Run full evaluation (original agent)
-    python run_evals.py --langgraph        # Run with LangGraph agent
+    python run_evals.py                    # Run full evaluation
     python run_evals.py --quick            # Run quick subset
     python run_evals.py --category auth    # Run specific category
     python run_evals.py --parallel         # Run in parallel
@@ -35,26 +35,17 @@ from evals.logger import LogLevel
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run HR Agent Evaluations",
+        description="Run HR Agent Evaluations (LangGraph)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_evals.py                     Run full evaluation suite (original agent)
-  python run_evals.py --langgraph         Run with LangGraph agent
+  python run_evals.py                     Run full evaluation suite
   python run_evals.py --quick             Run quick test (easy cases only)
   python run_evals.py --category auth     Run authorization tests only
   python run_evals.py --verbose           Show detailed test output
   python run_evals.py --debug             Show full debug output with responses
   python run_evals.py --quiet             Only show final summary
         """,
-    )
-
-    # Agent selection
-    agent_group = parser.add_argument_group("Agent Selection")
-    agent_group.add_argument(
-        "--langgraph",
-        action="store_true",
-        help="Use LangGraph-based agent instead of original",
     )
 
     # Dataset selection
@@ -137,21 +128,14 @@ Examples:
         print("No test cases found for the selected criteria.")
         sys.exit(0)
 
-    # Determine agent type
-    agent_type = "langgraph" if args.langgraph else "original"
-
     # Initialize and run the evaluation
     runner = EvalRunner(
         dataset=dataset,
         parallel=args.parallel,
         log_level=log_level,
-        agent_type=agent_type,
     )
 
     metrics = runner.run()
-
-    # Save results
-    # save_eval_results(metrics)
 
     # Exit with a status code indicating success or failure
     if metrics.pass_rate < 0.8:  # 80% threshold

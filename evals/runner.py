@@ -3,7 +3,7 @@ Evaluation Runner
 
 Executes evaluation cases and collects metrics.
 Supports parallel execution and detailed logging.
-Supports both original HRAgent and LangGraph-based HRAgentLangGraph.
+Uses LangGraph-based HRAgentLangGraph.
 """
 
 import json
@@ -11,7 +11,6 @@ import time
 import re
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Literal
 
 from .metrics import EvalResult, EvalMetrics
 from .datasets import EvalCase, EvalDataset, get_default_dataset
@@ -22,11 +21,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from hr_agent.core.agent import HRAgent
 from hr_agent.core.langgraph_agent import HRAgentLangGraph
-
-# Type alias for agent selection
-AgentType = Literal["original", "langgraph"]
 
 
 class EvalRunner:
@@ -38,7 +33,7 @@ class EvalRunner:
     - Detailed logging with multiple verbosity levels
     - Tool call tracking
     - Latency measurement
-    - Support for both original and LangGraph agents
+    - LangGraph agent support
     """
 
     def __init__(
@@ -48,13 +43,11 @@ class EvalRunner:
         max_workers: int = 4,
         verbose: bool = True,
         log_level: LogLevel | None = None,
-        agent_type: AgentType = "original",
     ):
         self.dataset = dataset or get_default_dataset()
         self.parallel = parallel
         self.max_workers = max_workers
         self.results: list[EvalResult] = []
-        self.agent_type = agent_type
 
         # Set up logger
         if log_level is not None:
@@ -68,9 +61,8 @@ class EvalRunner:
         """Run all evaluation cases and return metrics."""
         self.results = []
 
-        agent_label = "LangGraph" if self.agent_type == "langgraph" else "Original"
         self.logger.start_run(
-            dataset_name=f"{self.dataset.name} ({agent_label} Agent)",
+            dataset_name=f"{self.dataset.name} (LangGraph Agent)",
             total_cases=len(self.dataset.cases),
             parallel=self.parallel,
         )
@@ -142,13 +134,9 @@ class EvalRunner:
         )
 
         try:
-            # Create agent with fresh session based on agent type
+            # Create LangGraph agent with fresh session
             start_time = time.time()
-
-            if self.agent_type == "langgraph":
-                agent = HRAgentLangGraph(case.user_email)
-            else:
-                agent = HRAgent(case.user_email)
+            agent = HRAgentLangGraph(case.user_email)
 
             # Track tool calls
             tools_called: list[str] = []
@@ -215,41 +203,10 @@ class EvalRunner:
         result.passed = False
         return result
 
-    def _extract_tool_calls(
-        self, agent: HRAgent | HRAgentLangGraph, query: str
-    ) -> list[str]:
+    def _extract_tool_calls(self, agent: HRAgentLangGraph, query: str) -> list[str]:
         """Extract which tools were called during agent execution."""
-        tools = []
-
-        # Handle LangGraph agent - it stores tools directly
-        if isinstance(agent, HRAgentLangGraph):
-            return agent.tools_called
-
-        # Primary method: Get tools from session context (most reliable)
-        tools_from_context = agent.session.get_context("tools_called")
-        if tools_from_context:
-            tools.extend(tools_from_context)
-
-        # Fallback: Check session turns for tool result patterns
-        for turn in agent.session.turns:
-            if turn.role == "user" and "Tool result for '" in turn.content:
-                # Extract tool name from "Tool result for 'tool_name':"
-                import re
-
-                match = re.search(r"Tool result for '(\w+)':", turn.content)
-                if match:
-                    tool_name = match.group(1)
-                    if tool_name not in tools:
-                        tools.append(tool_name)
-
-        # Also check context for last_search which indicates search_employee was called
-        if agent.session.get_context("last_search"):
-            if "search_employee" not in tools:
-                tools.append("search_employee")
-
-        # Deduplicate while preserving order
-        seen = set()
-        return [t for t in tools if not (t in seen or seen.add(t))]
+        # LangGraph agent stores tools directly
+        return agent.tools_called
 
     def _evaluate_tool_selection(
         self,
@@ -367,7 +324,6 @@ def run_evals(
     log_level: LogLevel | None = None,
     save_results: bool = True,
     output_dir: str = "eval_results",
-    agent_type: AgentType = "original",
 ) -> EvalMetrics:
     """
     Convenience function to run evaluations.
@@ -379,7 +335,6 @@ def run_evals(
         log_level: Explicit log level (QUIET, NORMAL, VERBOSE, DEBUG)
         save_results: Save results to JSON
         output_dir: Directory for results
-        agent_type: Which agent to use ("original" or "langgraph")
 
     Returns:
         EvalMetrics with all results and statistics
@@ -389,26 +344,20 @@ def run_evals(
         parallel=parallel,
         verbose=verbose,
         log_level=log_level,
-        agent_type=agent_type,
     )
     metrics = runner.run()
 
     if save_results:
         os.makedirs(output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        agent_suffix = f"_{agent_type}"
 
         # Save summary
-        summary_path = os.path.join(
-            output_dir, f"eval_summary_{timestamp}{agent_suffix}.json"
-        )
+        summary_path = os.path.join(output_dir, f"eval_summary_{timestamp}.json")
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(metrics.summary(), f, indent=2)
 
         # Save detailed results
-        results_path = os.path.join(
-            output_dir, f"eval_results_{timestamp}{agent_suffix}.json"
-        )
+        results_path = os.path.join(output_dir, f"eval_results_{timestamp}.json")
         with open(results_path, "w", encoding="utf-8") as f:
             json.dump([r.to_dict() for r in metrics.results], f, indent=2, default=str)
 

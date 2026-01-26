@@ -3,6 +3,8 @@ HR Agent API Server
 
 A FastAPI-based REST API for the HR Agent, enabling integration with
 web frontends, Slack bots, Microsoft Teams, and other applications.
+
+Built with LangGraph for agent orchestration.
 """
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
@@ -16,13 +18,13 @@ from sqlalchemy.exc import SQLAlchemyError
 import uvicorn
 import uuid
 
-from ..core.agent import HRAgent, get_requester_context
-from ..core.memory import get_memory_store
+from ..core.langgraph_agent import HRAgentLangGraph, run_hr_agent
 from ..seed import seed_if_needed
 from ..infrastructure.config import settings
 from ..infrastructure.security import rate_limiter, audit_logger, AuditAction
 from ..infrastructure.observability import logger, metrics
 from ..infrastructure.errors import HRAgentError, RateLimitError
+from ..repositories.employee import EmployeeRepository
 
 
 # ============================================================================
@@ -81,7 +83,7 @@ class HealthResponse(BaseModel):
 
 app = FastAPI(
     title="HR Agent API",
-    description="An intelligent HR assistant API for ACME Corporation",
+    description="An intelligent HR assistant API powered by LangGraph",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -95,6 +97,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================================
+# SESSION STORAGE (In-memory for demo, use Redis in production)
+# ============================================================================
+
+_sessions: dict[str, dict] = {}
+
+
+def get_or_create_session(session_id: str | None, user_email: str) -> tuple[str, dict]:
+    """Get or create a session for the user."""
+    if session_id and session_id in _sessions:
+        session = _sessions[session_id]
+        if session["user_email"] == user_email:
+            return session_id, session
+
+    # Create new session
+    new_session_id = session_id or str(uuid.uuid4())
+    _sessions[new_session_id] = {
+        "user_email": user_email,
+        "created_at": datetime.utcnow(),
+        "turns": [],
+        "pending_confirmation": None,
+    }
+    return new_session_id, _sessions[new_session_id]
 
 
 # ============================================================================
@@ -195,6 +222,27 @@ def _get_status_code(exc: HRAgentError) -> int:
 # ============================================================================
 
 
+def get_requester_context(user_email: str) -> dict:
+    """Get the context for the requesting user."""
+    employee_repo = EmployeeRepository()
+    employee = employee_repo.get_by_email(user_email)
+
+    if not employee:
+        raise ValueError(f"User {user_email} not found")
+
+    direct_reports = employee_repo.get_direct_reports(employee["employee_id"])
+
+    return {
+        "employee_id": employee["employee_id"],
+        "user_email": employee["email"],
+        "name": employee["preferred_name"] or employee.get("legal_name", "Unknown"),
+        "role": employee["title"],
+        "department": employee["department"],
+        "direct_reports": [r["employee_id"] for r in direct_reports],
+        "is_manager": len(direct_reports) > 0,
+    }
+
+
 async def get_current_user(
     request: Request, x_user_email: str = Header(..., alias="X-User-Email")
 ) -> dict:
@@ -239,19 +287,6 @@ async def startup_event():
 
 
 # ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-
-def create_session(user_email: str) -> str:
-    """Create a new conversation session and return its ID."""
-    session_id = str(uuid.uuid4())
-    memory_store = get_memory_store()
-    memory_store.get_or_create_session(session_id, user_email)
-    return session_id
-
-
-# ============================================================================
 # ENDPOINTS
 # ============================================================================
 
@@ -283,14 +318,31 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
     Send a message to the HR Agent and get a response.
 
     Supports multi-turn conversations using session_id.
+    Uses LangGraph for agent orchestration.
     """
     try:
-        agent = HRAgent(user["user_email"], request.session_id)
-        response = agent.chat(request.message)
+        session_id, session = get_or_create_session(
+            request.session_id, user["user_email"]
+        )
+
+        # Run the LangGraph agent
+        response = run_hr_agent(
+            user_email=user["user_email"],
+            question=request.message,
+        )
+
+        # Store the turn
+        session["turns"].append(
+            {
+                "query": request.message,
+                "response": response,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
         return ChatResponse(
             response=response,
-            session_id=agent.session_id,
+            session_id=session_id,
             timestamp=datetime.now().isoformat(),
         )
     except (ValueError, TypeError, KeyError) as e:
@@ -300,17 +352,12 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
 @app.post("/sessions", response_model=SessionInfo, tags=["Sessions"])
 async def create_new_session(user: dict = Depends(get_current_user)):
     """Create a new conversation session."""
-    session_id = create_session(user["user_email"])
-    memory_store = get_memory_store()
-    session = memory_store.get_session(session_id)
-
-    if not session:
-        raise HTTPException(status_code=500, detail="Failed to create session")
+    session_id, session = get_or_create_session(None, user["user_email"])
 
     return SessionInfo(
         session_id=session_id,
         user_email=user["user_email"],
-        created_at=session.created_at.isoformat(),
+        created_at=session["created_at"].isoformat(),
         turn_count=0,
         has_pending_confirmation=False,
     )
@@ -319,56 +366,51 @@ async def create_new_session(user: dict = Depends(get_current_user)):
 @app.get("/sessions/{session_id}", response_model=SessionInfo, tags=["Sessions"])
 async def get_session_info(session_id: str, user: dict = Depends(get_current_user)):
     """Get information about a conversation session."""
-    memory_store = get_memory_store()
-    session = memory_store.get_session(session_id)
-
-    if not session:
+    if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if session.user_email != user["user_email"]:
+    session = _sessions[session_id]
+    if session["user_email"] != user["user_email"]:
         raise HTTPException(status_code=403, detail="Access denied to this session")
 
     return SessionInfo(
-        session_id=session.session_id,
-        user_email=session.user_email,
-        created_at=session.created_at.isoformat(),
-        turn_count=len(session.turns),
-        has_pending_confirmation=session.has_pending_confirmation(),
+        session_id=session_id,
+        user_email=session["user_email"],
+        created_at=session["created_at"].isoformat(),
+        turn_count=len(session["turns"]),
+        has_pending_confirmation=session["pending_confirmation"] is not None,
     )
 
 
 @app.delete("/sessions/{session_id}", tags=["Sessions"])
 async def delete_session(session_id: str, user: dict = Depends(get_current_user)):
     """Delete a conversation session."""
-    memory_store = get_memory_store()
-    session = memory_store.get_session(session_id)
-
-    if not session:
+    if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if session.user_email != user["user_email"]:
+    session = _sessions[session_id]
+    if session["user_email"] != user["user_email"]:
         raise HTTPException(status_code=403, detail="Access denied to this session")
 
-    memory_store.delete_session(session_id)
+    del _sessions[session_id]
     return {"message": "Session deleted successfully"}
 
 
 @app.get("/sessions", response_model=list[SessionInfo], tags=["Sessions"])
 async def list_my_sessions(user: dict = Depends(get_current_user)):
     """List all sessions for the current user."""
-    memory_store = get_memory_store()
-    sessions = memory_store.list_sessions(user["user_email"])
-
-    return [
+    user_sessions = [
         SessionInfo(
-            session_id=s.session_id,
-            user_email=s.user_email,
-            created_at=s.created_at.isoformat(),
-            turn_count=len(s.turns),
-            has_pending_confirmation=s.has_pending_confirmation(),
+            session_id=sid,
+            user_email=s["user_email"],
+            created_at=s["created_at"].isoformat(),
+            turn_count=len(s["turns"]),
+            has_pending_confirmation=s["pending_confirmation"] is not None,
         )
-        for s in sessions
+        for sid, s in _sessions.items()
+        if s["user_email"] == user["user_email"]
     ]
+    return user_sessions
 
 
 # ============================================================================
@@ -404,14 +446,18 @@ async def detailed_health_check():
         health["checks"]["database"] = {"status": "unhealthy", "error": str(e)}
         health["status"] = "degraded"
 
-    # Check LLM (optional - don't fail if unavailable)
-    try:
-        from ..core.llm import get_client
+    # Check LLM
+    health["checks"]["llm"] = {
+        "status": "configured",
+        "model": settings.llm_model,
+        "provider": settings.llm_provider,
+    }
 
-        get_client()  # Verify client can be created
-        health["checks"]["llm"] = {"status": "configured", "model": settings.llm_model}
-    except (ImportError, ValueError, OSError) as e:
-        health["checks"]["llm"] = {"status": "unavailable", "error": str(e)}
+    # Check LangSmith
+    if settings.langsmith_api_key:
+        health["checks"]["langsmith"] = {"status": "enabled"}
+    else:
+        health["checks"]["langsmith"] = {"status": "disabled"}
 
     return health
 

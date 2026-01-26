@@ -1,24 +1,22 @@
 """
 HR Agent v2.0 - A production-ready HR assistant
 
-Architecture (Reorganized):
-- core/: Agent orchestration, policy engine, memory, LLM
-- domain/: Models, schemas, and enums
-- services/: Business logic layer and tool implementations
-- repositories/: Data access layer (SQL abstraction)
-- api/: FastAPI REST endpoints
-- infrastructure/: Config, database, observability, security, errors
-- policies/: YAML policy configurations
+Built with LangChain/LangGraph/LangSmith stack:
+- LangGraph: Stateful agent workflow with checkpointing
+- LangChain: Tool definitions and LLM integration
+- LangSmith: Tracing and observability
 
-Supports both:
-- Original HRAgent (custom implementation)
-- HRAgentLangGraph (LangChain/LangGraph-based)
+Architecture:
+- core/: LangGraph agent and policy engine
+- domain/: Models, schemas, and enums
+- services/: Business logic and LangChain tools
+- repositories/: Data access layer
+- api/: FastAPI REST endpoints
+- infrastructure/: Config, database, observability
+- policies/: YAML policy configurations
 """
 
-# Core - Original Agent
-from .core.agent import HRAgent
-
-# Core - LangGraph Agent
+# LangGraph Agent
 from .core.langgraph_agent import HRAgentLangGraph, run_hr_agent
 
 # Services
@@ -31,13 +29,8 @@ from .services import (
     HolidayService,
     CompensationService,
     CompanyService,
+    get_all_tools,
 )
-
-# Tool Registry (Legacy)
-from .services.tool_registry import get_tool_registry, ToolRegistry, ToolDefinition
-
-# LangChain Tools
-from .services.langchain_tools import get_all_tools as get_hr_tools
 
 # Domain Models
 from .domain.models import (
@@ -59,10 +52,9 @@ from .infrastructure.errors import (
 )
 
 __all__ = [
-    # Agents
-    "HRAgent",  # Original
-    "HRAgentLangGraph",  # LangGraph-based
-    "run_hr_agent",  # LangGraph runner
+    # Agent
+    "HRAgentLangGraph",
+    "run_hr_agent",
     # Services
     "get_employee_service",
     "get_holiday_service",
@@ -72,15 +64,11 @@ __all__ = [
     "HolidayService",
     "CompensationService",
     "CompanyService",
+    # Tools
+    "get_all_tools",
     # Registry
     "registry",
     "AppRegistry",
-    # Tool Registry (Legacy)
-    "get_tool_registry",
-    "ToolRegistry",
-    "ToolDefinition",
-    # LangChain Tools
-    "get_hr_tools",
     # Models
     "UserRole",
     "HolidayRequestStatus",

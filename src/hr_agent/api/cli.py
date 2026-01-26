@@ -2,6 +2,7 @@
 HR Agent CLI
 
 Supports both single-query mode and interactive multi-turn conversations.
+Built with LangGraph for agent orchestration.
 """
 
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ import sys
 
 from ..seed import seed_if_needed
 from ..infrastructure.config import settings
-from ..core.agent import HRAgent, run_agent
+from ..core.langgraph_agent import HRAgentLangGraph, run_hr_agent
 
 console = Console()
 
@@ -20,7 +21,7 @@ def run_interactive(user_email: str):
     """Run the agent in interactive multi-turn mode."""
     console.print(
         Panel.fit(
-            f"[bold cyan]HR Agent Interactive Mode[/bold cyan]\n"
+            f"[bold cyan]HR Agent Interactive Mode (LangGraph)[/bold cyan]\n"
             f"User: [green]{user_email}[/green]\n"
             f"Type [bold]'exit'[/bold] or [bold]'quit'[/bold] to end the session.\n"
             f"Type [bold]'clear'[/bold] to start a new conversation.",
@@ -28,7 +29,7 @@ def run_interactive(user_email: str):
         )
     )
 
-    agent = HRAgent(user_email)
+    agent = HRAgentLangGraph(user_email)
 
     while True:
         try:
@@ -42,7 +43,7 @@ def run_interactive(user_email: str):
                 break
 
             if question.lower() == "clear":
-                agent = HRAgent(user_email)  # New session
+                agent = HRAgentLangGraph(user_email)  # New session
                 console.print("[yellow]Started new conversation.[/yellow]")
                 continue
 
@@ -107,7 +108,7 @@ def main():
         question = sys.argv[1]
 
     # Single query mode
-    answer = run_agent(user_email, question)
+    answer = run_hr_agent(user_email, question)
 
     console.print(f"\n[bold cyan]User:[/bold cyan] {user_email}")
     console.print(f"[bold green]Q:[/bold green] {question}")
