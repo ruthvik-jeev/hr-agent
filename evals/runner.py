@@ -3,6 +3,7 @@ Evaluation Runner
 
 Executes evaluation cases and collects metrics.
 Supports parallel execution and detailed logging.
+Supports both original HRAgent and LangGraph-based HRAgentLangGraph.
 """
 
 import json
@@ -10,6 +11,7 @@ import time
 import re
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Literal
 
 from .metrics import EvalResult, EvalMetrics
 from .datasets import EvalCase, EvalDataset, get_default_dataset
@@ -21,6 +23,10 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from hr_agent.core.agent import HRAgent
+from hr_agent.core.langgraph_agent import HRAgentLangGraph
+
+# Type alias for agent selection
+AgentType = Literal["original", "langgraph"]
 
 
 class EvalRunner:
@@ -32,6 +38,7 @@ class EvalRunner:
     - Detailed logging with multiple verbosity levels
     - Tool call tracking
     - Latency measurement
+    - Support for both original and LangGraph agents
     """
 
     def __init__(
@@ -41,11 +48,13 @@ class EvalRunner:
         max_workers: int = 4,
         verbose: bool = True,
         log_level: LogLevel | None = None,
+        agent_type: AgentType = "original",
     ):
         self.dataset = dataset or get_default_dataset()
         self.parallel = parallel
         self.max_workers = max_workers
         self.results: list[EvalResult] = []
+        self.agent_type = agent_type
 
         # Set up logger
         if log_level is not None:
@@ -59,8 +68,9 @@ class EvalRunner:
         """Run all evaluation cases and return metrics."""
         self.results = []
 
+        agent_label = "LangGraph" if self.agent_type == "langgraph" else "Original"
         self.logger.start_run(
-            dataset_name=self.dataset.name,
+            dataset_name=f"{self.dataset.name} ({agent_label} Agent)",
             total_cases=len(self.dataset.cases),
             parallel=self.parallel,
         )
@@ -132,10 +142,13 @@ class EvalRunner:
         )
 
         try:
-            # Create agent with fresh session
+            # Create agent with fresh session based on agent type
             start_time = time.time()
 
-            agent = HRAgent(case.user_email)
+            if self.agent_type == "langgraph":
+                agent = HRAgentLangGraph(case.user_email)
+            else:
+                agent = HRAgent(case.user_email)
 
             # Track tool calls
             tools_called: list[str] = []
@@ -148,7 +161,6 @@ class EvalRunner:
             result.actual_response = response
 
             # Extract tool calls from session or response
-            # We'll check the conversation history for tool patterns
             tools_called = self._extract_tool_calls(agent, case.query)
             result.tools_called = tools_called
 
@@ -203,9 +215,13 @@ class EvalRunner:
         result.passed = False
         return result
 
-    def _extract_tool_calls(self, agent: HRAgent, query: str) -> list[str]:
+    def _extract_tool_calls(self, agent: HRAgent | HRAgentLangGraph, query: str) -> list[str]:
         """Extract which tools were called during agent execution."""
         tools = []
+
+        # Handle LangGraph agent - it stores tools directly
+        if isinstance(agent, HRAgentLangGraph):
+            return agent.tools_called
 
         # Primary method: Get tools from session context (most reliable)
         tools_from_context = agent.session.get_context("tools_called")
@@ -349,6 +365,7 @@ def run_evals(
     log_level: LogLevel | None = None,
     save_results: bool = True,
     output_dir: str = "eval_results",
+    agent_type: AgentType = "original",
 ) -> EvalMetrics:
     """
     Convenience function to run evaluations.
@@ -360,26 +377,29 @@ def run_evals(
         log_level: Explicit log level (QUIET, NORMAL, VERBOSE, DEBUG)
         save_results: Save results to JSON
         output_dir: Directory for results
+        agent_type: Which agent to use ("original" or "langgraph")
 
     Returns:
         EvalMetrics with all results and statistics
     """
     runner = EvalRunner(
-        dataset=dataset, parallel=parallel, verbose=verbose, log_level=log_level
+        dataset=dataset, parallel=parallel, verbose=verbose, log_level=log_level,
+        agent_type=agent_type,
     )
     metrics = runner.run()
 
     if save_results:
         os.makedirs(output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        agent_suffix = f"_{agent_type}"
 
         # Save summary
-        summary_path = os.path.join(output_dir, f"eval_summary_{timestamp}.json")
+        summary_path = os.path.join(output_dir, f"eval_summary_{timestamp}{agent_suffix}.json")
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(metrics.summary(), f, indent=2)
 
         # Save detailed results
-        results_path = os.path.join(output_dir, f"eval_results_{timestamp}.json")
+        results_path = os.path.join(output_dir, f"eval_results_{timestamp}{agent_suffix}.json")
         with open(results_path, "w", encoding="utf-8") as f:
             json.dump([r.to_dict() for r in metrics.results], f, indent=2, default=str)
 

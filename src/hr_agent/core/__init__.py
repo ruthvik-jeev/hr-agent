@@ -5,6 +5,7 @@ Contains the main agent logic, policy engine, memory management, and LLM integra
 """
 
 from .agent import HRAgent, ToolExecutor, get_requester_context, run_agent
+from .langgraph_agent import HRAgentLangGraph, run_hr_agent as run_langgraph_agent
 from ..domain.models import AgentAction as Action
 from .policy_engine import (
     PolicyEngine,
@@ -25,12 +26,15 @@ from .llm import chat
 from .response_utils import prepare_tool_response
 
 __all__ = [
-    # Agent
+    # Agent (Original)
     "HRAgent",
     "Action",
     "ToolExecutor",
     "get_requester_context",
     "run_agent",
+    # Agent (LangGraph)
+    "HRAgentLangGraph",
+    "run_langgraph_agent",
     # Policy Engine
     "PolicyEngine",
     "PolicyContext",

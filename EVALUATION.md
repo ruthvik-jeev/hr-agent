@@ -21,6 +21,26 @@ python compare_suites.py --suite3
 python compare_suites.py --all --verbose --save
 ```
 
+### Agent Selection
+
+The evaluation framework supports two agent implementations:
+
+```bash
+# Run with original custom agent (default)
+python run_evals.py --quick
+
+# Run with LangGraph-based agent
+python run_evals.py --quick --langgraph
+
+# Run full evaluation with LangGraph agent
+python run_evals.py --langgraph --verbose
+```
+
+| Agent | Description | Use Case |
+|-------|-------------|----------|
+| `original` | Custom Python agent with OpenAI SDK | Default, battle-tested |
+| `langgraph` | LangChain/LangGraph-based workflow | Modern stack, better tracing |
+
 ## Test Suites Overview
 
 ### Suite 1: Basic Functionality & Anti-Hallucination
@@ -119,11 +139,12 @@ from evals.runner import EvalRunner
 from evals.test_suites import get_suite_1
 from evals.logger import LogLevel
 
-# Create runner with custom settings
+# Create runner with original agent
 runner = EvalRunner(
     dataset=get_suite_1(),
     parallel=False,
     log_level=LogLevel.VERBOSE,
+    agent_type="original",  # or "langgraph"
 )
 
 # Run and get metrics
@@ -137,6 +158,24 @@ print(f"Tool Accuracy: {metrics.tool_selection_accuracy * 100:.1f}%")
 by_cat = metrics.by_category()
 for cat, cat_metrics in by_cat.items():
     print(f"{cat.value}: {cat_metrics.pass_rate * 100:.1f}%")
+```
+
+### Comparing Agent Implementations
+
+```python
+from evals.runner import EvalRunner
+from evals.datasets import get_quick_dataset
+from evals.logger import LogLevel
+
+# Run with both agents
+for agent_type in ["original", "langgraph"]:
+    runner = EvalRunner(
+        dataset=get_quick_dataset(),
+        agent_type=agent_type,
+        log_level=LogLevel.NORMAL,
+    )
+    metrics = runner.run()
+    print(f"{agent_type}: {metrics.pass_rate * 100:.1f}% pass rate")
 ```
 
 ## Adding New Test Cases
