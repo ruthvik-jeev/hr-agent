@@ -22,8 +22,11 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from ..services.langchain_tools import get_all_tools, get_tools_requiring_confirmation, TOOL_MAP
 from ..services import get_employee_service
-from ..infrastructure.config import settings
+from ..infrastructure.config import settings, configure_langsmith
 from .policy_engine import get_policy_engine, PolicyContext
+
+# Configure LangSmith tracing if enabled
+_langsmith_enabled = configure_langsmith()
 
 
 # ============================================================================
