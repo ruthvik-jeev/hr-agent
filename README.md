@@ -50,60 +50,53 @@ streamlit run app.py
 ## 🏗️ Architecture
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'lineColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'nodeTextColor': '#1e3a5f', 'textColor': '#1e3a5f', 'mainBkg': '#e8f4f8', 'nodeBkg': '#e8f4f8', 'clusterBkg': '#f7f9fc'}}}%%
-
+%%{init: {'theme': 'neutral'}}%%
 flowchart TB
-    subgraph CLIENT["Clients"]
+    subgraph CLIENT["🖥️ Clients"]
         WEB["Web UI"]
         CLI["CLI"]
         API["REST API"]
     end
     
-    subgraph AGENT["LangGraph Agent"]
+    subgraph AGENT["🤖 LangGraph Agent"]
         direction LR
-        LLM["Agent<br/>Node"] --> AUTH["Auth<br/>Check"]
-        AUTH -->|allowed| TOOLS["Tool<br/>Execution"]
+        LLM["Agent Node"] --> AUTH["Auth Check"]
+        AUTH -->|allowed| TOOLS["Tool Execution"]
         AUTH -->|denied| LLM
         TOOLS --> LLM
     end
     
-    subgraph SERVICES["Services"]
+    subgraph SERVICES["⚙️ Services"]
         direction LR
         S1["Employee"]
         S2["Holiday"]
         S3["Compensation"]
     end
     
-    subgraph DATA["Data"]
+    subgraph DATA["💾 Data"]
         DB[("Database")]
     end
     
     CLIENT --> AGENT
     AGENT --> SERVICES
     SERVICES --> DATA
-    
-    style CLIENT fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
-    style AGENT fill:#f0f4f8,stroke:#3d5a80,stroke-width:3px,color:#1e3a5f
-    style SERVICES fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
-    style DATA fill:#f7f9fc,stroke:#6b7280,color:#1e3a5f
 ```
 
 ### How It Works
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'lineColor': '#3d5a80', 'actorBkg': '#e8f4f8', 'actorBorder': '#3d5a80', 'actorTextColor': '#1e3a5f', 'actorLineColor': '#3d5a80', 'signalColor': '#3d5a80', 'signalTextColor': '#1e3a5f', 'labelTextColor': '#1e3a5f', 'noteTextColor': '#1e3a5f', 'noteBkgColor': '#f7f9fc', 'noteBorderColor': '#3d5a80'}}}%%
-
+%%{init: {'theme': 'neutral'}}%%
 sequenceDiagram
-    participant U as User
-    participant A as Agent
-    participant P as Policy
-    participant T as Tools
-    participant D as Database
+    participant U as 👤 User
+    participant A as 🤖 Agent
+    participant P as 🔐 Policy
+    participant T as 🛠️ Tools
+    participant D as 💾 Database
 
     U->>A: "What's my holiday balance?"
     A->>A: Decide: get_holiday_balance
     A->>P: Check authorization
-    P-->>A: Allowed
+    P-->>A: ✅ Allowed
     A->>T: Execute tool
     T->>D: Query data
     D-->>T: 15 days remaining
@@ -174,28 +167,27 @@ python run_evals.py --category time_off
 ## 🛠️ Available Tools
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'lineColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'nodeTextColor': '#1e3a5f'}}}%%
-
+%%{init: {'theme': 'neutral'}}%%
 mindmap
-  root((HR Tools))
-    Employee
+  root((🛠️ HR Tools))
+    👤 Employee
       search_employee
       get_employee_basic
       get_employee_tenure
-    Organization
+    🏢 Organization
       get_manager
       get_direct_reports
       get_org_chart
       get_department_directory
-    Time Off
+    🏖️ Time Off
       get_holiday_balance
       submit_holiday_request
       get_pending_approvals
       get_team_calendar
-    Compensation
+    💰 Compensation
       get_compensation
       get_salary_history
-    Company
+    📋 Company
       get_company_policies
       get_announcements
       get_company_holidays
