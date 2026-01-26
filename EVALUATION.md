@@ -30,7 +30,7 @@ python run_evals.py --category time_off
 ## 📊 Evaluation Architecture
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#1e3a5f', 'lineColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'nodeTextColor': '#1e3a5f', 'textColor': '#1e3a5f'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'lineColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'nodeTextColor': '#1e3a5f', 'textColor': '#1e3a5f', 'mainBkg': '#e8f4f8', 'nodeBkg': '#e8f4f8', 'clusterBkg': '#f7f9fc'}}}%%
 
 flowchart TB
     subgraph RUNNER["Evaluation Runner"]
@@ -62,7 +62,7 @@ flowchart TB
     CASES --> RUNNER
     RUNNER --> METRICS
     
-    style RUNNER fill:#f0f4f8,stroke:#1e3a5f,stroke-width:2px,color:#1e3a5f
+    style RUNNER fill:#f0f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
     style METRICS fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
     style CASES fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
 ```
@@ -72,7 +72,7 @@ flowchart TB
 ## 📏 Evaluation Metrics
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#1e3a5f', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'pie1': '#1e3a5f', 'pie2': '#3d5a80', 'pie3': '#5c7999', 'pie4': '#7d9ab5', 'pie5': '#9eb8cf', 'pieTextColor': '#1e3a5f'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'pie1': '#3d5a80', 'pie2': '#5c7999', 'pie3': '#7d9ab5', 'pie4': '#9eb8cf', 'pie5': '#bfd4e6', 'pieTextColor': '#1e3a5f', 'pieLegendTextColor': '#1e3a5f', 'pieSectionTextColor': '#ffffff', 'pieStrokeColor': '#ffffff', 'pieTitleTextColor': '#1e3a5f'}}}%%
 
 pie title Evaluation Dimensions
     "Tool Selection" : 25
@@ -96,7 +96,7 @@ pie title Evaluation Dimensions
 ## 📁 Test Categories
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#1e3a5f', 'lineColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'lineColor': '#3d5a80', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#f7f9fc', 'nodeTextColor': '#1e3a5f'}}}%%
 
 mindmap
   root((Test Cases))
@@ -131,7 +131,7 @@ mindmap
 ## 🔄 Evaluation Flow
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'lineColor': '#3d5a80', 'actorBkg': '#e8f4f8', 'actorBorder': '#1e3a5f', 'actorTextColor': '#1e3a5f', 'actorLineColor': '#3d5a80', 'signalColor': '#3d5a80', 'signalTextColor': '#1e3a5f', 'labelTextColor': '#1e3a5f', 'noteTextColor': '#1e3a5f', 'noteBkgColor': '#f7f9fc', 'noteBorderColor': '#3d5a80'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4f8', 'primaryTextColor': '#1e3a5f', 'primaryBorderColor': '#3d5a80', 'lineColor': '#3d5a80', 'actorBkg': '#e8f4f8', 'actorBorder': '#3d5a80', 'actorTextColor': '#1e3a5f', 'actorLineColor': '#3d5a80', 'signalColor': '#3d5a80', 'signalTextColor': '#1e3a5f', 'labelTextColor': '#1e3a5f', 'noteTextColor': '#1e3a5f', 'noteBkgColor': '#f7f9fc', 'noteBorderColor': '#3d5a80', 'loopTextColor': '#1e3a5f'}}}%%
 
 sequenceDiagram
     autonumber

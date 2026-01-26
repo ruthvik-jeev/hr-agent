@@ -10,14 +10,14 @@
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#1e3a5f',
+    'primaryColor': '#e8f4f8',
     'primaryTextColor': '#1e3a5f',
-    'primaryBorderColor': '#1e3a5f',
+    'primaryBorderColor': '#3d5a80',
     'lineColor': '#3d5a80',
-    'secondaryColor': '#e8f4f8',
-    'tertiaryColor': '#f0f4f8',
+    'secondaryColor': '#f0f4f8',
+    'tertiaryColor': '#f7f9fc',
     'background': '#ffffff',
-    'mainBkg': '#ffffff',
+    'mainBkg': '#e8f4f8',
     'nodeBorder': '#3d5a80',
     'nodeTextColor': '#1e3a5f',
     'clusterBkg': '#f7f9fc',
@@ -85,7 +85,7 @@ flowchart TB
     TRACE -.-> AGENT
 
     style CLIENTS fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
-    style CORE fill:#f0f4f8,stroke:#1e3a5f,stroke-width:3px,color:#1e3a5f
+    style CORE fill:#f0f4f8,stroke:#3d5a80,stroke-width:3px,color:#1e3a5f
     style SERVICES fill:#e8f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
     style DATA fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
     style INFRA fill:#f0f4f8,stroke:#6b7280,stroke-width:2px,color:#1e3a5f
@@ -103,12 +103,14 @@ The agent follows a **ReAct pattern** with policy-based authorization:
   'themeVariables': {
     'primaryColor': '#e8f4f8',
     'primaryTextColor': '#1e3a5f',
-    'primaryBorderColor': '#1e3a5f',
+    'primaryBorderColor': '#3d5a80',
     'lineColor': '#3d5a80',
     'secondaryColor': '#f0f4f8',
     'tertiaryColor': '#f7f9fc',
     'stateBkg': '#e8f4f8',
     'stateLabelColor': '#1e3a5f',
+    'compositeBackground': '#f7f9fc',
+    'compositeBorder': '#3d5a80',
     'transitionColor': '#3d5a80',
     'transitionLabelColor': '#1e3a5f',
     'textColor': '#1e3a5f',
@@ -167,10 +169,12 @@ stateDiagram-v2
   'themeVariables': {
     'primaryColor': '#e8f4f8',
     'primaryTextColor': '#1e3a5f',
-    'primaryBorderColor': '#1e3a5f',
+    'primaryBorderColor': '#3d5a80',
     'lineColor': '#3d5a80',
     'textColor': '#1e3a5f',
-    'classText': '#1e3a5f'
+    'classText': '#1e3a5f',
+    'nodeBkg': '#e8f4f8',
+    'mainBkg': '#e8f4f8'
   }
 }}%%
 
@@ -224,10 +228,13 @@ classDiagram
   'themeVariables': {
     'primaryColor': '#e8f4f8',
     'primaryTextColor': '#1e3a5f',
-    'primaryBorderColor': '#1e3a5f',
+    'primaryBorderColor': '#3d5a80',
     'lineColor': '#3d5a80',
     'textColor': '#1e3a5f',
-    'nodeTextColor': '#1e3a5f'
+    'nodeTextColor': '#1e3a5f',
+    'mainBkg': '#e8f4f8',
+    'nodeBkg': '#e8f4f8',
+    'clusterBkg': '#f7f9fc'
   }
 }}%%
 
@@ -273,7 +280,7 @@ flowchart LR
     HOL_TOOLS --> CONFIRM
     COMP_TOOLS --> RESTRICT
 
-    style TOOLS fill:#f0f4f8,stroke:#1e3a5f,stroke-width:2px,color:#1e3a5f
+    style TOOLS fill:#f0f4f8,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
     style ACCESS fill:#f7f9fc,stroke:#3d5a80,stroke-width:2px,color:#1e3a5f
     style EMP_TOOLS fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
     style HOL_TOOLS fill:#e8f4f8,stroke:#3d5a80,color:#1e3a5f
@@ -291,10 +298,10 @@ flowchart LR
   'themeVariables': {
     'primaryColor': '#e8f4f8',
     'primaryTextColor': '#1e3a5f',
-    'primaryBorderColor': '#1e3a5f',
+    'primaryBorderColor': '#3d5a80',
     'lineColor': '#3d5a80',
     'actorBkg': '#e8f4f8',
-    'actorBorder': '#1e3a5f',
+    'actorBorder': '#3d5a80',
     'actorTextColor': '#1e3a5f',
     'actorLineColor': '#3d5a80',
     'signalColor': '#3d5a80',
@@ -305,8 +312,8 @@ flowchart LR
     'noteBkgColor': '#f7f9fc',
     'noteBorderColor': '#3d5a80',
     'activationBkgColor': '#e8f4f8',
-    'activationBorderColor': '#1e3a5f',
-    'sequenceNumberColor': '#ffffff'
+    'activationBorderColor': '#3d5a80',
+    'sequenceNumberColor': '#1e3a5f'
   }
 }}%%
 
