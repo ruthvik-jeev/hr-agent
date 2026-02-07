@@ -9,6 +9,7 @@ Uses LangGraph-based HRAgentLangGraph.
 import json
 import time
 import re
+import random
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -19,9 +20,9 @@ from .logger import EvalLogger, LogLevel
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from hr_agent.core.langgraph_agent import HRAgentLangGraph
+from hr_agent.agent.langgraph_agent import HRAgentLangGraph
 
 
 class EvalRunner:
@@ -43,11 +44,15 @@ class EvalRunner:
         max_workers: int = 4,
         verbose: bool = True,
         log_level: LogLevel | None = None,
+        max_retries: int = 5,
+        retry_base_delay_s: float = 1.0,
     ):
         self.dataset = dataset or get_default_dataset()
         self.parallel = parallel
         self.max_workers = max_workers
         self.results: list[EvalResult] = []
+        self.max_retries = max_retries
+        self.retry_base_delay_s = retry_base_delay_s
 
         # Set up logger
         if log_level is not None:
@@ -122,6 +127,15 @@ class EvalRunner:
                     # This should not happen if logic is correct
                     self.logger.error(f"No result found for case {case.id}")
 
+    def _is_rate_limit_error(self, response_or_error: str) -> bool:
+        text = (response_or_error or "").lower()
+        return (
+            "error code: 429" in text
+            or "request_limit_exceeded" in text
+            or "rate limit" in text
+            or "too many requests" in text
+        )
+
     def _run_single_case(self, case: EvalCase) -> EvalResult:
         """Run a single evaluation case."""
         result = EvalResult(
@@ -134,22 +148,43 @@ class EvalRunner:
         )
 
         try:
-            # Create LangGraph agent with fresh session
             start_time = time.time()
-            agent = HRAgentLangGraph(case.user_email)
 
-            # Track tool calls
-            tools_called: list[str] = []
+            # Retry loop for transient 429/QPS issues
+            last_error: str | None = None
+            response: str | None = None
+            agent: HRAgentLangGraph | None = None
 
-            # Run the agent
-            response = agent.chat(case.query)
+            for attempt in range(self.max_retries + 1):
+                try:
+                    agent = HRAgentLangGraph(case.user_email)
+                    response = agent.chat(case.query)
+
+                    # Some providers return rate limit as a *string response*.
+                    if isinstance(response, str) and self._is_rate_limit_error(
+                        response
+                    ):
+                        raise RuntimeError(response)
+
+                    break  # success
+                except Exception as e:  # noqa: BLE001
+                    last_error = str(e)
+                    if (
+                        not self._is_rate_limit_error(last_error)
+                        or attempt >= self.max_retries
+                    ):
+                        raise
+
+                    # exponential backoff with jitter
+                    delay = (self.retry_base_delay_s * (2**attempt)) + random.random()
+                    time.sleep(delay)
 
             end_time = time.time()
             result.latency_ms = (end_time - start_time) * 1000
-            result.actual_response = response
+            result.actual_response = response or ""
 
-            # Extract tool calls from session or response
-            tools_called = self._extract_tool_calls(agent, case.query)
+            # Extract tool calls
+            tools_called = self._extract_tool_calls(agent, case.query) if agent else []
             result.tools_called = tools_called
 
             # Evaluate tool selection (with alternates)
@@ -159,7 +194,7 @@ class EvalRunner:
 
             # Evaluate answer content (with alternates)
             result.answer_correct = self._evaluate_answer(
-                response,
+                result.actual_response,
                 case.expected_answer_contains,
                 case.expected_answer_not_contains,
                 getattr(case, "alternate_answer_contains", []),
@@ -167,16 +202,15 @@ class EvalRunner:
 
             # Evaluate authorization
             if case.should_be_denied:
-                # Check that access was denied
-                result.authorization_correct = self._check_access_denied(response)
+                result.authorization_correct = self._check_access_denied(
+                    result.actual_response
+                )
             else:
-                # Check that access was granted (no denial message)
-                result.authorization_correct = not self._check_access_denied(response)
+                result.authorization_correct = not self._check_access_denied(
+                    result.actual_response
+                )
 
-            # Count steps (estimate from response length and tool calls)
             result.num_steps = max(1, len(tools_called))
-
-            # Overall pass/fail
             result.passed = (
                 result.tool_selection_correct
                 and result.answer_correct

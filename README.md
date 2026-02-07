@@ -4,8 +4,9 @@
 
 ![LangChain](https://img.shields.io/badge/LangChain-0.3+-1e3a5f?style=for-the-badge&logo=langchain&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-Stateful-3d5a80?style=for-the-badge)
-![LangSmith](https://img.shields.io/badge/LangSmith-Tracing-5c7999?style=for-the-badge)
+![Langfuse](https://img.shields.io/badge/Langfuse-Tracing-5c7999?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![uv](https://img.shields.io/badge/uv-Package_Manager-DE5FE9?style=for-the-badge)
 
 **A production-ready HR assistant demonstrating best practices in LLM agent design**
 
@@ -21,16 +22,22 @@
 # Clone and setup
 git clone <repository-url>
 cd hr-agent
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies with uv
+uv sync
 
 # Configure
 cp .env.example .env
 # Edit .env with your LLM API key
 
 # Run the Web UI
-streamlit run app.py
+uv run streamlit run apps/web/app.py
+
+# Or run the API server
+uv run uvicorn apps.api.server:app --reload
 ```
 
 ---
@@ -39,11 +46,12 @@ streamlit run app.py
 
 | Feature | Description |
 |---------|-------------|
-| 🔄 **LangGraph Workflow** | Stateful agent with conditional routing and checkpointing |
+| 🔄 **LangGraph Workflow** | Stateful agent with conditional routing and message history |
 | 🛠️ **LangChain Tools** | 25 HR tools with Pydantic validation |
-| 📊 **LangSmith Tracing** | Full observability, debugging, and experiment tracking |
-| 🔐 **Policy Authorization** | Declarative YAML-based access control |
+| 📊 **Langfuse Tracing** | Full observability, debugging, and experiment tracking |
+| 🔐 **Policy Authorization** | Declarative YAML-based access control (safe evaluators, no eval()) |
 | 🧪 **Evaluation Framework** | 40+ test cases with automated scoring |
+| ⚡ **Modern Tooling** | uv for fast dependency management, hatchling for packaging |
 
 ---
 
@@ -110,23 +118,22 @@ sequenceDiagram
 
 ```
 hr-agent/
-├── 📄 app.py                    # Streamlit Web UI
-├── 📄 run_evals.py              # Evaluation runner
+├── 📁 apps/
+│   ├── web/                     # Streamlit Web UI
+│   └── api/                     # FastAPI server
 │
-├── 📁 src/hr_agent/
-│   ├── 📁 core/
-│   │   ├── langgraph_agent.py   # LangGraph workflow
-│   │   └── policy_engine.py     # Authorization
-│   │
-│   ├── 📁 services/
-│   │   ├── langchain_tools.py   # 25 LangChain tools
-│   │   └── base.py              # Service classes
-│   │
-│   ├── 📁 repositories/         # Data access layer
-│   ├── 📁 api/                  # REST API (FastAPI)
-│   └── 📁 policies/             # YAML auth rules
+├── 📁 hr_agent/
+│   ├── agent/                   # LangGraph workflow
+│   ├── policies/                # Authorization + YAML rules
+│   ├── tools/                   # LangChain tool wrappers
+│   ├── services/                # Business logic
+│   ├── repositories/            # Data access layer
+│   ├── configs/                 # Configuration
+│   ├── tracing/                 # Observability
+│   └── utils/                   # Cross-cutting utilities
 │
-└── 📁 evals/                    # Evaluation framework
+├── 📁 evals/                    # Evaluation framework
+└── 📁 docs/                     # Architecture and evaluation docs
 ```
 
 ---
@@ -135,13 +142,13 @@ hr-agent/
 
 ```bash
 # Quick test (10 cases)
-python run_evals.py --quick --verbose
+python evals/runners/run_evals.py --quick --verbose
 
 # Full evaluation
-python run_evals.py
+python evals/runners/run_evals.py
 
 # Filter by category
-python run_evals.py --category time_off
+python evals/runners/run_evals.py --category time_off
 ```
 
 ### Sample Output
@@ -205,10 +212,26 @@ LLM_PROVIDER=openai_compatible
 LLM_API_KEY=sk-...
 LLM_MODEL=gpt-4o-mini
 
-# Optional: LangSmith Tracing
-LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=lsv2_pt_...
-LANGSMITH_PROJECT=hr-agent
+# Optional: Langfuse Observability (free tier available)
+LANGFUSE_ENABLED=true
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+```
+
+### Using uv
+
+```bash
+# Install dependencies
+uv sync
+
+# Install with dev dependencies
+uv sync --group dev
+
+# Run commands
+uv run streamlit run apps/web/app.py
+uv run pytest
+uv run ruff check .
 ```
 
 ---

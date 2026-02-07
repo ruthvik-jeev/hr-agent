@@ -1,0 +1,186 @@
+# HR Agent Policy Rules
+# Defines authorization and confirmation requirements for sensitive actions
+# Each rule specifies which tool actions it governs via the 'actions' list.
+
+rules:
+  # ============================================================================
+  # HOLIDAY/TIME-OFF POLICIES
+  # ============================================================================
+
+  - name: "submit_own_holiday"
+    description: "Employees can submit their own holiday requests"
+    effect: "allow"
+    priority: 10
+    actions:
+      - submit_holiday_request
+    condition: "is_self"
+
+  - name: "cancel_own_holiday"
+    description: "Employees can cancel their own pending requests"
+    effect: "allow"
+    priority: 10
+    actions:
+      - cancel_holiday_request
+    condition: "is_self"
+
+  - name: "view_own_holiday_balance"
+    description: "Employees can view their own holiday balance and requests"
+    effect: "allow"
+    priority: 10
+    actions:
+      - get_holiday_balance
+      - get_holiday_requests
+    condition: "is_self"
+
+  # ============================================================================
+  # MANAGER POLICIES
+  # ============================================================================
+
+  - name: "manager_approve_holiday"
+    description: "Managers can approve their direct reports' requests"
+    effect: "allow"
+    priority: 20
+    actions:
+      - approve_holiday_request
+    condition: "is_manager and is_direct_report"
+
+  - name: "manager_reject_holiday"
+    description: "Managers can reject their direct reports' requests"
+    effect: "allow"
+    priority: 20
+    actions:
+      - reject_holiday_request
+    condition: "is_manager and is_direct_report"
+
+  - name: "manager_view_team_calendar"
+    description: "Managers can view their team's calendar"
+    effect: "allow"
+    priority: 20
+    actions:
+      - get_team_calendar
+    condition: "is_manager"
+
+  - name: "manager_view_pending_approvals"
+    description: "Managers can view pending approvals for their team"
+    effect: "allow"
+    priority: 20
+    actions:
+      - get_pending_approvals
+    condition: "is_manager"
+
+  - name: "manager_view_report_balance"
+    description: "Managers can view their direct reports' balances"
+    effect: "allow"
+    priority: 20
+    actions:
+      - get_holiday_balance
+      - get_holiday_requests
+    condition: "is_manager and is_direct_report"
+
+  # ============================================================================
+  # COMPENSATION POLICIES
+  # ============================================================================
+
+  - name: "view_own_compensation"
+    description: "Employees can view their own compensation"
+    effect: "allow"
+    priority: 10
+    actions:
+      - get_compensation
+    condition: "is_self"
+
+  - name: "view_own_salary_history"
+    description: "Employees can view their own salary history"
+    effect: "allow"
+    priority: 10
+    actions:
+      - get_salary_history
+    condition: "is_self"
+
+  - name: "hr_view_any_compensation"
+    description: "HR can view any employee's compensation"
+    effect: "allow"
+    priority: 30
+    actions:
+      - get_compensation
+      - get_salary_history
+    condition: "is_hr"
+
+  - name: "hr_team_compensation"
+    description: "HR can view team compensation summaries"
+    effect: "allow"
+    priority: 30
+    actions:
+      - get_team_compensation_summary
+    condition: "is_hr"
+
+  # ============================================================================
+  # EMPLOYEE INFO POLICIES (Public within org)
+  # ============================================================================
+
+  - name: "search_employees"
+    description: "All employees can search for other employees"
+    effect: "allow"
+    priority: 1
+    actions:
+      - search_employee
+    condition: "True"
+
+  - name: "view_employee_basic"
+    description: "All employees can view basic info and tenure"
+    effect: "allow"
+    priority: 1
+    actions:
+      - get_employee_basic
+      - get_employee_tenure
+    condition: "True"
+
+  - name: "view_org_structure"
+    description: "All employees can view org structure"
+    effect: "allow"
+    priority: 1
+    actions:
+      - get_manager
+      - get_manager_chain
+      - get_team_overview
+      - get_org_chart
+    condition: "True"
+
+  - name: "view_direct_reports"
+    description: "All employees can view direct reports"
+    effect: "allow"
+    priority: 1
+    actions:
+      - get_direct_reports
+      - get_department_directory
+    condition: "True"
+
+  # ============================================================================
+  # COMPANY INFO POLICIES (Public within org)
+  # ============================================================================
+
+  - name: "view_company_policies"
+    description: "All employees can view company policies"
+    effect: "allow"
+    priority: 1
+    actions:
+      - get_company_policies
+      - get_policy_details
+    condition: "True"
+
+  - name: "view_company_holidays"
+    description: "All employees can view company holidays"
+    effect: "allow"
+    priority: 1
+    actions:
+      - get_company_holidays
+    condition: "True"
+
+  - name: "view_announcements"
+    description: "All employees can view announcements and events"
+    effect: "allow"
+    priority: 1
+    actions:
+      - get_announcements
+      - get_upcoming_events
+    condition: "True"
