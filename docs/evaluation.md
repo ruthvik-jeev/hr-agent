@@ -56,6 +56,36 @@ uv run python evals/runners/run_evals.py --output results.json
 uv run python evals/deepeval_runner.py
 ```
 
+### Langfuse Tracing for Evals
+
+If Langfuse is enabled, eval runs are tagged with metadata so you can filter them easily.
+
+Example filters:
+- `run_type=eval`
+- `eval_dataset=default` (or your dataset name)
+- `eval_case_id=time_off_001`
+- `eval_category=time_off`
+- `eval_difficulty=easy`
+
+### Langfuse Dashboard (Eval Metrics)
+
+To build a dashboard in Langfuse using the eval scores, use the **Scores** view and add these filters:
+
+- `name` starts with `eval_`
+- `metadata.eval_dataset = <your dataset name>`
+- (optional) `metadata.run_type = eval`
+
+Recommended charts:
+
+- **Pass rate**: `eval_pass` → AVG
+- **Tool selection**: `eval_tool_selection` → AVG
+- **Answer quality**: `eval_answer_quality` → AVG
+- **Authorization**: `eval_authorization` → AVG
+- **Latency**: `eval_latency_ms` → P50/P95
+- **Steps**: `eval_steps` → AVG
+
+Save the dashboard as **HR Agent Eval Metrics** for reuse.
+
 ---
 
 ## Test Categories

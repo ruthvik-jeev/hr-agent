@@ -34,9 +34,11 @@ from deepeval.test_case import LLMTestCase
 
 from evals.datasets import EvalDataset, get_default_dataset
 from evals.metrics import EvalCategory
+from hr_agent.configs.config import get_langfuse_client
 
 
 # --- Import datasets lazily to avoid loading big modules unless requested
+
 
 def _load_dataset(name: str) -> EvalDataset:
     if name == "generated-1000":
@@ -94,10 +96,19 @@ class DatabricksLLM(DeepEvalBaseLLM):
 
     def generate(self, prompt: str, **kwargs) -> str:
         import requests
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
         try:
-            resp = requests.post(self.api_url, headers=headers, json=payload, timeout=60)
+            resp = requests.post(
+                self.api_url, headers=headers, json=payload, timeout=60
+            )
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]
         except Exception as e:
@@ -145,8 +156,13 @@ def run_deepeval(
 
     # Set up Databricks LLM grader
     if use_llm_metrics:
-        model = grader_model or os.environ.get("GRADER_MODEL", "databricks-qwen3-next-80b-a3b-instruct")
-        api_url = grader_api_url or os.environ.get("GRADER_API_URL", "https://YOUR-DATABRICKS-URL/serving-endpoint/YOUR-ENDPOINT/invocations")
+        model = grader_model or os.environ.get(
+            "GRADER_MODEL", "databricks-qwen3-next-80b-a3b-instruct"
+        )
+        api_url = grader_api_url or os.environ.get(
+            "GRADER_API_URL",
+            "https://YOUR-DATABRICKS-URL/serving-endpoint/YOUR-ENDPOINT/invocations",
+        )
         api_key = grader_api_key or os.environ.get("GRADER_API_KEY", "")
         llm = DatabricksLLM(model, api_url, api_key)
 
@@ -166,7 +182,19 @@ def run_deepeval(
     # For now, grading is per-case.
 
     for c in cases:
-        agent = HRAgentLangGraph(c.user_email)
+        trace_metadata = {
+            "run_type": "eval",
+            "eval_dataset": dataset.name,
+            "eval_case_id": c.id,
+            "eval_category": c.category.value,
+            "eval_difficulty": c.difficulty.value,
+        }
+        eval_session_id = f"eval_{c.id}"
+        agent = HRAgentLangGraph(
+            c.user_email,
+            session_id=eval_session_id,
+            trace_metadata=trace_metadata,
+        )
         response = agent.chat(c.query)
         tools_called = getattr(agent, "tools_called", [])
 
@@ -195,12 +223,16 @@ def run_deepeval(
             for m in metrics:
                 try:
                     result = m.measure(tc)
-                    metric_scores[m.__class__.__name__] = getattr(result, 'score', None)
+                    metric_scores[m.__class__.__name__] = getattr(result, "score", None)
                     # Threshold logic per metric
                     if isinstance(m, FaithfulnessMetric):
-                        metric_results["faithfulness"] = getattr(result, 'score', 1.0) >= faithfulness_threshold
+                        metric_results["faithfulness"] = (
+                            getattr(result, "score", 1.0) >= faithfulness_threshold
+                        )
                     elif isinstance(m, ToxicityMetric):
-                        metric_results["toxicity"] = getattr(result, 'score', 0.0) >= toxicity_threshold
+                        metric_results["toxicity"] = (
+                            getattr(result, "score", 0.0) >= toxicity_threshold
+                        )
                 except Exception as e:
                     metric_scores[m.__class__.__name__] = f"error: {e}"
                     metric_results[m.__class__.__name__] = False
@@ -226,24 +258,71 @@ def run_deepeval(
                 reason=reason,
             )
         )
-        export_data.append({
-            "case_id": c.id,
-            "category": c.category.value,
-            "passed": passed,
-            "reason": reason,
-            "query": c.query,
-            "response": response,
-            "tools_called": tools_called,
-            "expected_tools": c.expected_tools,
-            "should_be_denied": getattr(c, "should_be_denied", False),
-            "metric_scores": metric_scores,
-            "metric_results": metric_results,
-        })
+        export_data.append(
+            {
+                "case_id": c.id,
+                "category": c.category.value,
+                "passed": passed,
+                "reason": reason,
+                "query": c.query,
+                "response": response,
+                "tools_called": tools_called,
+                "expected_tools": c.expected_tools,
+                "should_be_denied": getattr(c, "should_be_denied", False),
+                "metric_scores": metric_scores,
+                "metric_results": metric_results,
+            }
+        )
+
+        client = get_langfuse_client()
+        if client:
+            metadata = {
+                "eval_dataset": dataset.name,
+                "eval_case_id": c.id,
+                "eval_category": c.category.value,
+                "eval_difficulty": c.difficulty.value,
+            }
+            client.create_score(
+                name="eval_pass",
+                value=1.0 if passed else 0.0,
+                data_type="BOOLEAN",
+                session_id=eval_session_id,
+                metadata=metadata,
+            )
+            client.create_score(
+                name="eval_tool_selection",
+                value=1.0 if tool_ok else 0.0,
+                data_type="BOOLEAN",
+                session_id=eval_session_id,
+                metadata=metadata,
+            )
+            client.create_score(
+                name="eval_authorization",
+                value=1.0 if auth_ok else 0.0,
+                data_type="BOOLEAN",
+                session_id=eval_session_id,
+                metadata=metadata,
+            )
+            if use_llm_metrics:
+                client.create_score(
+                    name="eval_answer_quality",
+                    value=1.0 if llm_pass else 0.0,
+                    data_type="BOOLEAN",
+                    session_id=eval_session_id,
+                    metadata=metadata,
+                )
 
     if export_json:
         with open(export_json, "w") as f:
             json.dump(export_data, f, indent=2)
         print(f"Exported eval results to {export_json}")
+
+    client = get_langfuse_client()
+    if client:
+        try:
+            client.flush()
+        except Exception:
+            pass
 
     return outcomes
 
@@ -259,12 +338,38 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--sample", type=int, default=100)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--sample-offset", type=int, default=0)
-    parser.add_argument("--faithfulness-threshold", type=float, default=0.5, help="Faithfulness metric threshold")
-    parser.add_argument("--relevance-threshold", type=float, default=0.5, help="Relevance metric threshold")
-    parser.add_argument("--refusal-threshold", type=float, default=0.5, help="Refusal metric threshold")
-    parser.add_argument("--toxicity-threshold", type=float, default=0.5, help="Toxicity metric threshold")
-    parser.add_argument("--export-json", type=str, default=None, help="Export failed cases and metrics to JSON file")
-    parser.add_argument("--batch-grading", action="store_true", help="Enable batch grading if supported (TODO)")
+    parser.add_argument(
+        "--faithfulness-threshold",
+        type=float,
+        default=0.5,
+        help="Faithfulness metric threshold",
+    )
+    parser.add_argument(
+        "--relevance-threshold",
+        type=float,
+        default=0.5,
+        help="Relevance metric threshold",
+    )
+    parser.add_argument(
+        "--refusal-threshold", type=float, default=0.5, help="Refusal metric threshold"
+    )
+    parser.add_argument(
+        "--toxicity-threshold",
+        type=float,
+        default=0.5,
+        help="Toxicity metric threshold",
+    )
+    parser.add_argument(
+        "--export-json",
+        type=str,
+        default=None,
+        help="Export failed cases and metrics to JSON file",
+    )
+    parser.add_argument(
+        "--batch-grading",
+        action="store_true",
+        help="Enable batch grading if supported (TODO)",
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 

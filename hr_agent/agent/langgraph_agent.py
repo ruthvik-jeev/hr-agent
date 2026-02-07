@@ -371,11 +371,17 @@ class HRAgentLangGraph:
     Drop-in replacement for the original HRAgent class.
     """
 
-    def __init__(self, user_email: str, session_id: str | None = None):
+    def __init__(
+        self,
+        user_email: str,
+        session_id: str | None = None,
+        trace_metadata: dict[str, Any] | None = None,
+    ):
         self.user_email = user_email
         self.session_id = (
             session_id or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         )
+        self._trace_metadata = trace_metadata or {}
 
         # Get user context
         self.requester_context = self._get_requester_context(user_email)
@@ -406,17 +412,33 @@ class HRAgentLangGraph:
             "current_date": datetime.now().strftime("%Y-%m-%d"),
         }
 
-        # Build config with Langfuse callbacks if available
-        config = {"configurable": {"thread_id": self.session_id}}
+        config = {
+            "configurable": {"thread_id": self.session_id},
+            "metadata": {
+                "user_email": self.user_email,
+                "user_id": self.requester_context.get("employee_id"),
+                "user_role": self.requester_context.get("role"),
+                "session_id": self.session_id,
+            },
+            "tags": ["hr-agent", "langgraph"],
+        }
+
+        callbacks = []
         langfuse_handler = get_langfuse_handler()
         if langfuse_handler:
             langfuse_handler.session_id = self.session_id
             langfuse_handler.user_id = self.user_email
-            langfuse_handler.metadata = {
+            metadata = {
                 "user_role": self.requester_context.get("role"),
                 "user_id": self.requester_context.get("employee_id"),
             }
-            config["callbacks"] = [langfuse_handler]
+            if self._trace_metadata:
+                metadata.update(self._trace_metadata)
+            langfuse_handler.metadata = metadata
+            callbacks.append(langfuse_handler)
+
+        if callbacks:
+            config["callbacks"] = callbacks
 
         try:
             result = self.graph.invoke(initial_state, config)
@@ -455,12 +477,33 @@ class HRAgentLangGraph:
             "current_date": datetime.now().strftime("%Y-%m-%d"),
         }
 
-        config = {"configurable": {"thread_id": self.session_id}}
+        config = {
+            "configurable": {"thread_id": self.session_id},
+            "metadata": {
+                "user_email": self.user_email,
+                "user_id": self.requester_context.get("employee_id"),
+                "user_role": self.requester_context.get("role"),
+                "session_id": self.session_id,
+            },
+            "tags": ["hr-agent", "langgraph"],
+        }
+
+        callbacks = []
         langfuse_handler = get_langfuse_handler()
         if langfuse_handler:
             langfuse_handler.session_id = self.session_id
             langfuse_handler.user_id = self.user_email
-            config["callbacks"] = [langfuse_handler]
+            metadata = {
+                "user_role": self.requester_context.get("role"),
+                "user_id": self.requester_context.get("employee_id"),
+            }
+            if self._trace_metadata:
+                metadata.update(self._trace_metadata)
+            langfuse_handler.metadata = metadata
+            callbacks.append(langfuse_handler)
+
+        if callbacks:
+            config["callbacks"] = callbacks
 
         try:
             # Stream events from the graph

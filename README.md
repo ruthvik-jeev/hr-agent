@@ -217,6 +217,10 @@ LANGFUSE_ENABLED=true
 LANGFUSE_PUBLIC_KEY=pk-...
 LANGFUSE_SECRET_KEY=sk-...
 LANGFUSE_HOST=https://cloud.langfuse.com
+
+# Langfuse eval tracing
+# Eval runs are tagged with metadata like run_type=eval and eval_dataset=<name>
+
 ```
 
 ### Using uv

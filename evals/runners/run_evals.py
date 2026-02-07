@@ -95,6 +95,12 @@ Examples:
         default=1.0,
         help="Base delay seconds for exponential backoff (429/QPS)",
     )
+    exec_group.add_argument(
+        "--batch-tag",
+        type=str,
+        default="",
+        help="Tag this run for comparison (e.g., batch_a)",
+    )
 
     # Output options
     output_group = parser.add_argument_group("Output Options")
@@ -214,6 +220,7 @@ Examples:
         log_level=log_level,
         max_retries=args.max_retries,
         retry_base_delay_s=args.retry_base_delay,
+        batch_tag=args.batch_tag or None,
     )
 
     metrics = runner.run()

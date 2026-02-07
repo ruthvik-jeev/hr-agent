@@ -199,8 +199,7 @@ st.markdown(
         background-color: var(--card-background);
         border: 1px solid var(--border-color);
         border-radius: 12px;
-        padding: 1.5rem;
-        min-height: 500px;
+        padding: 1.25rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
@@ -329,6 +328,26 @@ st.markdown(
         padding: 0.375rem 0.75rem;
         font-size: 0.8rem;
         color: var(--primary-color);
+    }
+
+    .empty-state {
+        border: 1px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 100%);
+        color: var(--text-secondary);
+    }
+
+    .empty-state h3 {
+        margin: 0 0 0.5rem 0;
+        color: var(--primary-dark);
+        font-size: 1.05rem;
+    }
+
+    .empty-state p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.9rem;
     }
 </style>
 """,
@@ -559,28 +578,21 @@ if (
     st.session_state.current_email = current_email
     st.session_state.messages = []
 
+# Chat container
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
 # Welcome message when no chat history
 if not st.session_state.messages:
     st.markdown(
         """
-    <div class="welcome-message">
+    <div class="empty-state">
         <h3>👋 Welcome to HR Assistant</h3>
-        <p>I can help you with a variety of HR-related questions and tasks. Here are some things I can do:</p>
-        <div class="capability-tags">
-            <span class="capability-tag">🏖️ Time Off</span>
-            <span class="capability-tag">💰 Compensation</span>
-            <span class="capability-tag">👥 Team Info</span>
-            <span class="capability-tag">📋 Policies</span>
-            <span class="capability-tag">🏢 Org Structure</span>
-            <span class="capability-tag">📅 Events</span>
-        </div>
+        <p>Ask about time off, compensation, team info, policies, or company events.</p>
+        <p>Try: "What's my holiday balance?" • "Who is my manager?" • "Remote work policy"</p>
     </div>
     """,
         unsafe_allow_html=True,
     )
-
-# Chat container
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 # Display chat messages
 for message in st.session_state.messages:

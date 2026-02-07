@@ -23,6 +23,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from hr_agent.agent.langgraph_agent import HRAgentLangGraph
+from hr_agent.configs.config import get_langfuse_client
 
 
 class EvalRunner:
@@ -46,6 +47,7 @@ class EvalRunner:
         log_level: LogLevel | None = None,
         max_retries: int = 5,
         retry_base_delay_s: float = 1.0,
+        batch_tag: str | None = None,
     ):
         self.dataset = dataset or get_default_dataset()
         self.parallel = parallel
@@ -53,6 +55,8 @@ class EvalRunner:
         self.results: list[EvalResult] = []
         self.max_retries = max_retries
         self.retry_base_delay_s = retry_base_delay_s
+        self.run_id = datetime.utcnow().strftime("evalrun_%Y%m%d_%H%M%S")
+        self.batch_tag = batch_tag
 
         # Set up logger
         if log_level is not None:
@@ -80,7 +84,135 @@ class EvalRunner:
         metrics = EvalMetrics(results=self.results)
         self.logger.end_run(metrics)
 
+        self._log_langfuse_run_summary(metrics)
+
         return metrics
+
+    def _log_langfuse_case_metrics(self, result: EvalResult, session_id: str) -> None:
+        client = get_langfuse_client()
+        if not client:
+            return
+
+        metadata = {
+            "eval_run_id": self.run_id,
+            "eval_batch": self.batch_tag or "",
+            "eval_dataset": self.dataset.name,
+            "eval_case_id": result.case_id,
+            "eval_category": result.category.value,
+            "eval_difficulty": result.difficulty.value,
+        }
+
+        client.create_score(
+            name="eval_pass",
+            value=1.0 if result.passed else 0.0,
+            data_type="BOOLEAN",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_tool_selection",
+            value=1.0 if result.tool_selection_correct else 0.0,
+            data_type="BOOLEAN",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_answer_quality",
+            value=1.0 if result.answer_correct else 0.0,
+            data_type="BOOLEAN",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_authorization",
+            value=1.0 if result.authorization_correct else 0.0,
+            data_type="BOOLEAN",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_latency_ms",
+            value=float(result.latency_ms or 0.0),
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_steps",
+            value=float(result.num_steps or 0),
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+
+    def _log_langfuse_run_summary(self, metrics: EvalMetrics) -> None:
+        client = get_langfuse_client()
+        if not client:
+            return
+
+        session_id = f"eval_run_{self.run_id}"
+        metadata = {
+            "eval_run_id": self.run_id,
+            "eval_batch": self.batch_tag or "",
+            "eval_dataset": self.dataset.name,
+            "eval_total_cases": metrics.total_cases,
+        }
+
+        client.create_score(
+            name="eval_pass_rate",
+            value=metrics.pass_rate * 100.0,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_tool_selection_accuracy",
+            value=metrics.tool_selection_accuracy * 100.0,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_answer_accuracy",
+            value=metrics.answer_accuracy * 100.0,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_authorization_compliance",
+            value=metrics.authorization_compliance * 100.0,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_avg_latency_ms",
+            value=metrics.avg_latency_ms,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_p95_latency_ms",
+            value=metrics.p95_latency_ms,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+        client.create_score(
+            name="eval_avg_steps",
+            value=metrics.avg_steps,
+            data_type="NUMERIC",
+            session_id=session_id,
+            metadata=metadata,
+        )
+
+        # Ensure scores are sent before process exit
+        try:
+            client.flush()
+        except Exception:
+            pass
 
     def _run_sequential(self):
         """Run cases one at a time."""
@@ -155,9 +287,22 @@ class EvalRunner:
             response: str | None = None
             agent: HRAgentLangGraph | None = None
 
+            eval_session_id = f"eval_{case.id}"
             for attempt in range(self.max_retries + 1):
                 try:
-                    agent = HRAgentLangGraph(case.user_email)
+                    trace_metadata = {
+                        "run_type": "eval",
+                        "eval_batch": self.batch_tag or "",
+                        "eval_dataset": self.dataset.name,
+                        "eval_case_id": case.id,
+                        "eval_category": case.category.value,
+                        "eval_difficulty": case.difficulty.value,
+                    }
+                    agent = HRAgentLangGraph(
+                        case.user_email,
+                        session_id=eval_session_id,
+                        trace_metadata=trace_metadata,
+                    )
                     response = agent.chat(case.query)
 
                     # Some providers return rate limit as a *string response*.
@@ -220,6 +365,11 @@ class EvalRunner:
         except (RuntimeError, ValueError, KeyError, TypeError) as e:
             result.error = str(e)
             result.passed = False
+
+        try:
+            self._log_langfuse_case_metrics(result, eval_session_id)
+        except Exception:
+            pass
 
         return result
 

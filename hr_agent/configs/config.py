@@ -34,6 +34,7 @@ settings = Settings()
 
 
 _langfuse_handler = None
+_langfuse_client = None
 
 
 def get_langfuse_handler():
@@ -64,3 +65,28 @@ def get_langfuse_handler():
 
     _langfuse_handler = CallbackHandler()
     return _langfuse_handler
+
+
+def get_langfuse_client():
+    """Create a Langfuse client for custom scoring/events.
+
+    Returns None when Langfuse is not configured.
+    """
+    global _langfuse_client
+    if _langfuse_client is not None:
+        return _langfuse_client
+
+    if not settings.langfuse_enabled:
+        return None
+    if not settings.langfuse_public_key or not settings.langfuse_secret_key:
+        return None
+
+    import os
+    from langfuse import Langfuse
+
+    os.environ.setdefault("LANGFUSE_PUBLIC_KEY", settings.langfuse_public_key)
+    os.environ.setdefault("LANGFUSE_SECRET_KEY", settings.langfuse_secret_key)
+    os.environ.setdefault("LANGFUSE_HOST", settings.langfuse_host)
+
+    _langfuse_client = Langfuse()
+    return _langfuse_client
