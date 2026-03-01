@@ -225,7 +225,29 @@ LANGFUSE_HOST=https://cloud.langfuse.com
 
 ### Using uv
 
-Install UV
+Install `uv` (if needed)
+
+If `uv` is not installed, use one of the following:
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Then verify:
+
+```bash
+uv --version
+```
+
+Common issue: if `uv` is still not found, restart your terminal so your `PATH` is refreshed.
+
+Use `uv` in this project:
 
 ```bash
 # Install dependencies
