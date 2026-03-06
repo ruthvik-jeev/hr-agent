@@ -40,13 +40,13 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@400');
 
     html {
-        font-size: 85%;
+        font-size: 93%;
     }
 
     :root {
         --bg: #f5f7fb;
         --panel: #ffffff;
-        --line: #dde4ee;
+        --line: #d4ddea;
         --text: #22314a;
         --muted: #7a8ea8;
         --brand: #f5a623;
@@ -68,7 +68,7 @@ st.markdown(
         font-family: 'Inter', sans-serif;
         background: #f4f6fb;
         color: var(--text);
-        font-size: 13px;
+        font-size: 14px;
     }
 
     [data-testid="stHeader"],
@@ -78,9 +78,20 @@ st.markdown(
         height: 0;
     }
 
+    [data-testid="stAppViewContainer"] > .main {
+        padding: 0 !important;
+    }
+
     .main .block-container {
-        max-width: 1800px;
-        padding: 0.45rem 0.55rem 0.55rem;
+        max-width: none !important;
+        width: 100% !important;
+        min-height: calc(100vh - 0.4rem);
+        margin: 0 !important;
+        padding: 0.14rem 0.34rem 0.24rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--bg);
+        overflow: hidden;
     }
 
     div[data-testid="stVerticalBlock"] > div:has(> .rail-shell) {
@@ -129,7 +140,11 @@ st.markdown(
 
     .global-top-divider {
         border-top: 1px solid var(--line);
-        margin: 0 0 0.62rem;
+        margin: 0;
+    }
+
+    .post-top-gap {
+        height: 0.26rem;
     }
 
     .top-center-title {
@@ -152,16 +167,25 @@ st.markdown(
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 0.34rem;
         text-decoration: none !important;
         border: 1px solid #f0ca7e;
-        border-radius: 10px;
+        border-radius: 9px;
         background: #fff6e6;
         color: #c7830f;
-        font-size: 0.86rem;
+        font-size: 0.8rem;
         font-weight: 600;
-        padding: 0.38rem 0.88rem;
+        padding: 0.3rem 0.74rem;
         white-space: nowrap;
         line-height: 1;
+    }
+
+    .top-requests-icon {
+        font-family: 'Material Symbols Outlined';
+        font-size: 0.86rem;
+        line-height: 1;
+        color: #c7830f;
+        margin-top: -0.01rem;
     }
 
     .left-head {
@@ -203,17 +227,78 @@ st.markdown(
         display: none;
     }
 
-    div[data-testid="column"]:has(.left-col-marker) {
+    .top-left-marker,
+    .top-center-marker,
+    .top-right-marker,
+    .center-col-marker,
+    .right-col-marker {
+        display: none;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.top-left-marker),
+    div[data-testid="stHorizontalBlock"]:has(.left-col-marker) {
+        gap: 0 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.top-left-marker) {
+        border-top: 1px solid var(--line);
+    }
+
+    div[data-testid="stColumn"]:has(.top-left-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"] {
+        padding-left: 0.44rem;
+        padding-right: 0.44rem;
+    }
+
+    div[data-testid="stColumn"]:has(.top-center-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.center-col-marker) > div[data-testid="stVerticalBlock"] {
+        padding-left: 0.42rem;
+        padding-right: 0.42rem;
+    }
+
+    div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.right-col-marker) > div[data-testid="stVerticalBlock"] {
+        padding-left: 0.36rem;
+        padding-right: 0.36rem;
+    }
+
+    div[data-testid="stColumn"]:has(.top-left-marker),
+    div[data-testid="stColumn"]:has(.top-center-marker),
+    div[data-testid="stColumn"]:has(.top-right-marker),
+    div[data-testid="stColumn"]:has(.left-col-marker),
+    div[data-testid="stColumn"]:has(.right-col-marker) {
         background: #ffffff;
+    }
+
+    div[data-testid="stColumn"]:has(.top-left-marker),
+    div[data-testid="stColumn"]:has(.left-col-marker) {
+        border-left: 1px solid var(--line);
         border-right: 1px solid var(--line);
     }
 
+    div[data-testid="stColumn"]:has(.top-center-marker),
+    div[data-testid="stColumn"]:has(.center-col-marker) {
+        border-left: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+    }
+
+    div[data-testid="stColumn"]:has(.top-right-marker),
+    div[data-testid="stColumn"]:has(.right-col-marker) {
+        border-left: none;
+        border-right: 1px solid var(--line);
+    }
+
+    div[data-testid="stColumn"]:has(.left-col-marker),
+    div[data-testid="stColumn"]:has(.right-col-marker) {
+        border-bottom: 1px solid var(--line);
+    }
+
     .new-convo-gap-top {
-        height: 0.2rem;
+        height: 0.32rem;
     }
 
     .new-convo-gap-bottom {
-        height: 0.34rem;
+        height: 0.48rem;
     }
 
     .thread-card {
@@ -265,7 +350,6 @@ st.markdown(
 
     .profile-footer {
         margin-top: 0.55rem;
-        border-top: 1px solid var(--line);
         padding-top: 0.65rem;
     }
 
@@ -367,10 +451,10 @@ st.markdown(
     }
 
     .tile-card {
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid var(--line);
-        padding: 0.72rem 0.88rem;
-        margin-bottom: 0.45rem;
+        padding: 0.54rem 0.72rem;
+        margin-bottom: 0.35rem;
     }
 
     .tile-row {
@@ -389,15 +473,15 @@ st.markdown(
 
     .tile-title {
         margin: 0;
-        font-size: 0.92rem;
+        font-size: 0.86rem;
         font-weight: 600;
         color: #2f425f;
     }
 
     .tile-subtitle {
-        margin: 0.26rem 0 0 0;
+        margin: 0.2rem 0 0 0;
         color: #7f95af;
-        font-size: 0.83rem;
+        font-size: 0.78rem;
     }
 
     .chat-note {
@@ -487,22 +571,22 @@ st.markdown(
 
     .metric-card {
         border: 1px solid #cfd8e5;
-        border-radius: 14px;
-        padding: 0.78rem 0.3rem 0.56rem;
+        border-radius: 12px;
+        padding: 0.56rem 0.24rem 0.4rem;
         text-align: center;
         background: #f4f8fc;
     }
 
     .metric-num {
-        font-size: 1.2rem;
+        font-size: 1.02rem;
         font-weight: 700;
-        margin: 0 0 0.18rem 0;
+        margin: 0 0 0.12rem 0;
     }
 
     .metric-label {
-        margin: 0.08rem 0 0 0;
+        margin: 0.03rem 0 0 0;
         color: #8b9fb8;
-        font-size: 0.95rem;
+        font-size: 0.78rem;
         letter-spacing: 0.05em;
         text-transform: uppercase;
         font-weight: 600;
@@ -510,14 +594,16 @@ st.markdown(
     }
 
     .stButton > button {
-        border-radius: 10px;
+        border-radius: 9px;
         border: 1px solid #d8e1ec;
         color: #3f5576;
         font-weight: 500;
         background: #fbfdff;
-        font-size: 0.84rem;
-        padding-top: 0.42rem;
-        padding-bottom: 0.42rem;
+        font-size: 0.78rem;
+        line-height: 1.1;
+        min-height: 2.08rem;
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
     }
 
     .stButton > button:hover {
@@ -544,10 +630,10 @@ st.markdown(
         border-radius: 10px !important;
         border: none !important;
         background: transparent !important;
-        padding: 0.22rem 0.65rem !important;
+        padding: 0.16rem 0.56rem !important;
         color: #667d98 !important;
         font-weight: 600 !important;
-        font-size: 0.9rem !important;
+        font-size: 0.82rem !important;
     }
 
     div[data-testid="stSegmentedControl"] label[aria-checked="true"] {
@@ -558,6 +644,24 @@ st.markdown(
 
     .chat-input-wrap {
         margin-top: 0.15rem;
+    }
+
+    div[data-testid="stChatInput"] {
+        border: 1px solid #bfd4f2;
+        border-radius: 14px;
+        background: #fbfdff;
+        box-shadow: inset 0 0 0 1px #dbe8fb;
+    }
+
+    div[data-testid="stChatInput"] > div {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    div[data-testid="stChatInput"]:focus-within {
+        border-color: #8fb4e9;
+        box-shadow: 0 0 0 1px #bcd4f3 inset;
     }
 
     @media (max-width: 1200px) {
@@ -887,6 +991,7 @@ else:
 
 
 with header_left:
+    st.markdown('<div class="top-left-marker"></div>', unsafe_allow_html=True)
     st.markdown(
         """
         <div class="panel-top">
@@ -900,7 +1005,8 @@ with header_left:
     )
 
 with header_center:
-    top_title = "PingHR"
+    st.markdown('<div class="top-center-marker"></div>', unsafe_allow_html=True)
+    top_title = "Employee HR Assistant"
     if active_thread["messages"]:
         top_title = f"← {_short_text(active_thread['title'], 70)}"
     safe_top_title = html.escape(top_title)
@@ -908,7 +1014,10 @@ with header_center:
         f"""
         <div class="panel-top top-center-bar">
             <p class="top-center-title">{safe_top_title}</p>
-            <a class="top-requests-link" target="_self" href="?thread={active_thread['id']}&toggle_requests=1">🗂️ My Requests</a>
+            <a class="top-requests-link" target="_self" href="?thread={active_thread['id']}&toggle_requests=1">
+                <span class="top-requests-icon">inventory_2</span>
+                <span>My Requests</span>
+            </a>
         </div>
         """,
         unsafe_allow_html=True,
@@ -916,6 +1025,7 @@ with header_center:
 
 if header_right:
     with header_right:
+        st.markdown('<div class="top-right-marker"></div>', unsafe_allow_html=True)
         st.markdown(
             """
             <div class="panel-top">
@@ -927,6 +1037,7 @@ if header_right:
         )
 
 st.markdown('<div class="global-top-divider"></div>', unsafe_allow_html=True)
+st.markdown('<div class="post-top-gap"></div>', unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -940,8 +1051,6 @@ with left_col:
         st.query_params["thread"] = new_id
         st.rerun()
     st.markdown('<div class="new-convo-gap-bottom"></div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="thin-divider"></div>', unsafe_allow_html=True)
 
     for thread in store["threads"]:
         is_active = thread["id"] == store["active_thread_id"]
@@ -986,6 +1095,7 @@ with left_col:
 # CENTER PANEL
 # ---------------------------------------------------------------------------
 with center_col:
+    st.markdown('<div class="center-col-marker"></div>', unsafe_allow_html=True)
     if st.session_state.queued_prompt:
         _process_prompt(current_email, active_thread, st.session_state.queued_prompt)
         _sort_threads(store)
@@ -1073,6 +1183,7 @@ with center_col:
 # ---------------------------------------------------------------------------
 if right_col and st.session_state.show_requests_panel:
     with right_col:
+        st.markdown('<div class="right-col-marker"></div>', unsafe_allow_html=True)
         counts = escalation_service.list_counts(current_email)
         st.markdown(
             f'<p class="rail-subtitle">{counts["total"]} escalated queries</p>',
@@ -1080,7 +1191,7 @@ if right_col and st.session_state.show_requests_panel:
         )
         st.markdown('<div style="height:0.2rem;"></div>', unsafe_allow_html=True)
 
-        m1, m2, m3 = st.columns(3, gap="small")
+        m1, m2, m3 = st.columns(3, gap="xsmall")
         with m1:
             st.markdown(
                 f"""
