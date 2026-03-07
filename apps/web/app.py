@@ -33,643 +33,978 @@ st.set_page_config(
 # THEME
 # ============================================================================
 
+_css_version = "v4"  # bump to bust browser cache
 st.markdown(
-    """
-<style>
+    f"""
+<style data-version="{_css_version}">
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@400');
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1');
 
-    html {
-        font-size: 93%;
-    }
+    /* ── RESET & GLOBALS ── */
+    html {{ font-size: 15px; }}
 
-    :root {
-        --bg: #f5f7fb;
+    :root {{
+        --bg: #f0f2f5;
         --panel: #ffffff;
-        --line: #d4ddea;
-        --text: #22314a;
-        --muted: #7a8ea8;
-        --brand: #f5a623;
-        --brand-soft: #fff6e6;
-        --blue: #2a9fd6;
-        --green: #1fa971;
-        --danger: #df4c5f;
-        --tile-a: #fff9ef;
-        --tile-b: #f1fbf6;
-        --tile-c: #f4f9ff;
-        --tile-d: #fff8f0;
-        --tile-e: #fff4f7;
-        --tile-f: #f1fcfa;
-        --tile-g: #f7f3ff;
-        --tile-h: #fffaf0;
-    }
+        --sidebar-bg: #f7f8fa;
+        --line: #e2e8f0;
+        --text: #1e293b;
+        --muted: #64748b;
+        --brand: #f59e0b;
+        --brand-bg: #fffbeb;
+        --brand-border: #fde68a;
+        --brand-text: #b45309;
+        --accent: #3b82f6;
+        --green: #10b981;
+        --danger: #ef4444;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        --radius: 12px;
+        --header-h: 3.25rem;
+        --shell-gap: 1.1rem;
+        --chat-w: 44rem;
+    }}
 
-    .stApp {
-        font-family: 'Inter', sans-serif;
-        background: #f4f6fb;
+    .stApp {{
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+        background: var(--bg) !important;
         color: var(--text);
-        font-size: 14px;
-    }
-
-    [data-testid="stHeader"],
-    #MainMenu,
-    footer {
-        visibility: hidden;
-        height: 0;
-    }
-
-    [data-testid="stAppViewContainer"] > .main {
+        font-size: 0.875rem;
         padding: 0 !important;
-    }
+        margin: 0 !important;
+    }}
 
-    .main .block-container {
+    html, body {{
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden;
+    }}
+
+    /* ── HIDE STREAMLIT CHROME ── */
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    [data-testid="stStatusWidget"],
+    [data-testid="stBottom"],
+    [data-testid="stDecoration"],
+    #MainMenu, footer, header {{
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }}
+
+    /* ── FULL-BLEED CONTAINER ── */
+    [data-testid="stAppViewContainer"] {{
+        background: var(--bg) !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }}
+
+    [data-testid="stAppViewContainer"] > .main {{
+        padding: var(--shell-gap) !important;
+        margin: 0 !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+        box-sizing: border-box;
+    }}
+
+    .main .block-container,
+    [data-testid="stMainBlockContainer"] {{
         max-width: none !important;
         width: 100% !important;
-        min-height: calc(100vh - 0.4rem);
+        min-height: calc(100vh - (var(--shell-gap) * 2));
         margin: 0 !important;
-        padding: 0.14rem 0.34rem 0.24rem;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: var(--bg);
+        padding: 0 !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 14px !important;
+        background: var(--bg) !important;
         overflow: hidden;
-    }
+        box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+    }}
 
-    div[data-testid="stVerticalBlock"] > div:has(> .rail-shell) {
-        min-height: calc(100vh - 2rem);
-    }
+    .main .block-container > div[data-testid="stVerticalBlock"],
+    [data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] {{
+        gap: 0 !important;
+        padding: 0 !important;
+        min-height: 100%;
+    }}
 
-    .rail-shell {
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        overflow: hidden;
+    [data-testid="stAppViewContainer"] > .main > .block-container {{
+        padding-top: 0 !important;
+    }}
+
+    /* ── SHELL ROW LAYOUT (ONLY TOP-LEVEL ROWS) ── */
+    .main .block-container > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"]:has(.top-left-marker),
+    .main .block-container > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"]:has(.left-col-marker),
+    [data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"]:has(.top-left-marker),
+    [data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"]:has(.left-col-marker) {{
+        gap: 0 !important;
+        column-gap: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        align-items: stretch;
+    }}
+
+    /* ── HIDDEN MARKERS ── */
+    .left-col-marker, .center-col-marker, .right-col-marker,
+    .top-left-marker, .top-center-marker, .top-right-marker {{
+        display: none !important;
+    }}
+
+    div[data-testid="stMarkdown"]:has(.left-col-marker),
+    div[data-testid="stMarkdownContainer"]:has(.left-col-marker),
+    div[data-testid="stMarkdown"]:has(.center-col-marker),
+    div[data-testid="stMarkdownContainer"]:has(.center-col-marker),
+    div[data-testid="stMarkdown"]:has(.right-col-marker),
+    div[data-testid="stMarkdownContainer"]:has(.right-col-marker),
+    div[data-testid="stMarkdown"]:has(.top-left-marker),
+    div[data-testid="stMarkdownContainer"]:has(.top-left-marker),
+    div[data-testid="stMarkdown"]:has(.top-center-marker),
+    div[data-testid="stMarkdownContainer"]:has(.top-center-marker),
+    div[data-testid="stMarkdown"]:has(.top-right-marker),
+    div[data-testid="stMarkdownContainer"]:has(.top-right-marker) {{
+        display: none !important;
+    }}
+
+    /* ── HEADER ROW ── */
+    div[data-testid="stHorizontalBlock"]:has(.top-left-marker) {{
+        min-height: var(--header-h);
+        height: var(--header-h);
+        border-bottom: 1px solid var(--line);
         background: var(--panel);
-    }
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        z-index: 10;
+    }}
 
-    .rail-title {
-        font-weight: 600;
-        font-size: 0.95rem;
-        color: var(--text);
-        margin: 0 0 0.25rem 0;
-    }
+    div[data-testid="stColumn"]:has(.top-left-marker),
+    div[data-testid="stColumn"]:has(.top-center-marker),
+    div[data-testid="stColumn"]:has(.top-right-marker) {{
+        background: var(--panel) !important;
+        min-height: var(--header-h);
+        overflow: hidden;
+    }}
 
-    .rail-subtitle {
-        margin: 0.35rem 0 0.55rem 0;
-        color: var(--muted);
-        font-size: 0.8rem;
-    }
+    div[data-testid="stColumn"]:has(.top-left-marker) div[data-testid="stMarkdownContainer"]:has(.panel-top),
+    div[data-testid="stColumn"]:has(.top-center-marker) div[data-testid="stMarkdownContainer"]:has(.panel-top),
+    div[data-testid="stColumn"]:has(.top-right-marker) div[data-testid="stMarkdownContainer"]:has(.panel-top),
+    div[data-testid="stColumn"]:has(.top-left-marker) div[data-testid="stMarkdown"]:has(.panel-top),
+    div[data-testid="stColumn"]:has(.top-center-marker) div[data-testid="stMarkdown"]:has(.panel-top),
+    div[data-testid="stColumn"]:has(.top-right-marker) div[data-testid="stMarkdown"]:has(.panel-top) {{
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: var(--header-h) !important;
+    }}
 
-    .panel-top {
+    /* ── COLUMN BACKGROUNDS ── */
+    div[data-testid="stColumn"]:has(.left-col-marker) {{
+        background: var(--sidebar-bg) !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.center-col-marker) {{
+        background: var(--bg) !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.right-col-marker) {{
+        background: var(--panel) !important;
+    }}
+
+    /* ── COLUMN BORDERS ── */
+    div[data-testid="stColumn"]:has(.top-left-marker),
+    div[data-testid="stColumn"]:has(.left-col-marker) {{
+        border-right: 1px solid var(--line) !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-center-marker),
+    div[data-testid="stColumn"]:has(.center-col-marker) {{
+        border-right: 1px solid var(--line) !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-right-marker),
+    div[data-testid="stColumn"]:has(.right-col-marker),
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {{
+        border-right: none !important;
+    }}
+
+    /* ── COLUMN INNER PADDING ── */
+    div[data-testid="stColumn"]:has(.top-left-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.top-center-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"] {{
+        min-height: var(--header-h) !important;
+        height: var(--header-h) !important;
+        overflow: hidden;
+        justify-content: center;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-left-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0 0.7rem;
+    }}
+
+    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0.55rem 0.7rem 0.75rem;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-center-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0 0.95rem;
+    }}
+
+    div[data-testid="stColumn"]:has(.center-col-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0.55rem 1.05rem 0.85rem;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0 0.85rem;
+    }}
+
+    div[data-testid="stColumn"]:has(.right-col-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0.55rem 0.85rem 0.85rem;
+    }}
+
+    /* ── PER-PANEL SCROLLING ── */
+    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.center-col-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.right-col-marker) > div[data-testid="stVerticalBlock"] {{
+        max-height: calc(100vh - (var(--shell-gap) * 2) - var(--header-h) - 2px);
+        overflow-y: auto;
+        overflow-x: hidden;
+    }}
+
+    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"] {{
+        display: flex;
+        flex-direction: column;
+    }}
+
+    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"] > div:has(.left-rail-spacer) {{
+        flex: 1 1 auto;
+        min-height: 0;
+    }}
+
+    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"] > div:has(.profile-footer) {{
+        position: sticky;
+        bottom: 0.35rem;
+        z-index: 6;
+        margin-top: auto;
+        background: var(--sidebar-bg);
+    }}
+
+    /* ── PANEL TOP BAR ── */
+    .panel-top {{
         display: flex;
         align-items: center;
         justify-content: space-between;
-        min-height: 2.9rem;
-        height: 2.9rem;
+        min-height: var(--header-h);
+        height: var(--header-h);
         box-sizing: border-box;
-        padding: 0 0.14rem;
-        background: #ffffff;
-    }
+        padding: 0 0.75rem;
+        background: transparent;
+        width: 100%;
+    }}
 
-    .panel-top-btn {
-        padding: 0.1rem 0.12rem;
-    }
+    .global-top-divider {{
+        display: none;
+    }}
 
-    .panel-divider {
-        border-top: 1px solid var(--line);
-        margin: 0 0 0.65rem 0;
-    }
+    .post-top-gap {{
+        height: 0;
+    }}
 
-    .global-top-divider {
-        border-top: 1px solid var(--line);
-        margin: 0;
-    }
+    /* ── LOGO & LEFT HEAD ── */
+    .left-head {{
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0;
+    }}
 
-    .post-top-gap {
-        height: 0.26rem;
-    }
+    .logo-box {{
+        width: 30px;
+        height: 30px;
+        border: none;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #ffffff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        box-shadow: 0 2px 4px rgb(245 158 11 / 0.3);
+    }}
 
-    .top-center-title {
-        font-size: 0.95rem;
+    /* ── CENTER HEADER ── */
+    .top-center-bar {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        min-width: 0;
+        padding-right: 0.95rem;
+    }}
+
+    .top-center-title {{
+        font-size: 0.875rem;
         font-weight: 600;
         color: var(--text);
         margin: 0;
-        line-height: 1.2;
+        line-height: 1.3;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-    }
+    }}
 
-    .top-center-bar {
-        gap: 0.6rem;
-        width: 100%;
-    }
+    .top-center-subtitle {{
+        font-size: 0.7rem;
+        color: var(--muted);
+        margin: 0.1rem 0 0 0;
+    }}
 
-    .top-requests-link {
+    .top-bar-info {{
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }}
+
+    .back-arrow {{
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.34rem;
+        width: 2rem;
+        height: 2rem;
+        color: var(--muted);
         text-decoration: none !important;
-        border: 1px solid #f0ca7e;
-        border-radius: 9px;
-        background: #fff6e6;
-        color: #c7830f;
-        font-size: 0.8rem;
-        font-weight: 600;
-        padding: 0.3rem 0.74rem;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }}
+
+    .back-arrow:hover {{
+        color: var(--text);
+        background: var(--bg);
+    }}
+
+    /* ── MY REQUESTS BUTTON ── */
+    .top-requests-link {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        text-decoration: none !important;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.4rem 0.75rem;
         white-space: nowrap;
         line-height: 1;
-    }
+        flex-shrink: 0;
+        align-self: center;
+        margin-left: auto;
+        margin-right: 0.1rem;
+        transition: all 0.2s ease;
+    }}
 
-    .top-requests-icon {
-        font-family: 'Material Symbols Outlined';
-        font-size: 0.86rem;
-        line-height: 1;
-        color: #c7830f;
-        margin-top: -0.01rem;
-    }
-
-    .left-head {
-        display: flex;
-        align-items: center;
-        gap: 0.65rem;
-        padding: 0;
-        font-size: 1.16rem;
-        font-weight: 600;
+    .top-requests-link:hover {{
         color: var(--text);
-    }
+        border-color: #cbd5e1;
+        box-shadow: var(--shadow-sm);
+    }}
 
-    .logo-box {
-        width: 34px;
-        height: 34px;
-        border: 1px solid #efc35f;
-        border-radius: 10px;
+    .top-requests-link.active {{
+        background: var(--brand-bg);
+        border-color: var(--brand-border);
+        color: var(--brand-text);
+        box-shadow: 0 0 0 1px var(--brand-border);
+    }}
+
+    .top-requests-icon {{
+        font-family: 'Material Symbols Outlined';
+        font-size: 0.875rem;
+        line-height: 1;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #ffe8bb;
-        color: #c07c10;
-        font-size: 0.9rem;
-        font-weight: 700;
-    }
+        flex-shrink: 0;
+    }}
 
-    .thin-divider {
+    /* ── RIGHT RAIL ── */
+    .rail-title {{
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text);
+        margin: 0;
+    }}
+
+    .rail-subtitle {{
+        margin: 0.25rem 0 0.5rem 0;
+        color: var(--muted);
+        font-size: 0.75rem;
+    }}
+
+    .rail-close {{
+        color: var(--muted);
+        text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+    }}
+
+    .rail-close:hover {{
+        color: var(--text);
+        background: var(--bg);
+    }}
+
+    /* ── LEFT SIDEBAR ── */
+    .new-convo-gap-top {{
+        height: 0.95rem;
+    }}
+
+    .new-convo-gap-bottom {{
+        height: 0.35rem;
+    }}
+
+    .thin-divider {{
+        border: none;
         border-top: 1px solid var(--line);
-        margin: 0.45rem 0 0.45rem 0;
-    }
+        margin: 0.25rem 0;
+    }}
 
-    .thread-link {
+    .thread-link {{
         text-decoration: none !important;
         color: inherit !important;
         display: block;
-    }
+    }}
 
-    .left-col-marker {
-        display: none;
-    }
-
-    .top-left-marker,
-    .top-center-marker,
-    .top-right-marker,
-    .center-col-marker,
-    .right-col-marker {
-        display: none;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.top-left-marker),
-    div[data-testid="stHorizontalBlock"]:has(.left-col-marker) {
-        gap: 0 !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.top-left-marker) {
-        border-top: 1px solid var(--line);
-    }
-
-    div[data-testid="stColumn"]:has(.top-left-marker) > div[data-testid="stVerticalBlock"],
-    div[data-testid="stColumn"]:has(.left-col-marker) > div[data-testid="stVerticalBlock"] {
-        padding-left: 0.44rem;
-        padding-right: 0.44rem;
-    }
-
-    div[data-testid="stColumn"]:has(.top-center-marker) > div[data-testid="stVerticalBlock"],
-    div[data-testid="stColumn"]:has(.center-col-marker) > div[data-testid="stVerticalBlock"] {
-        padding-left: 0.42rem;
-        padding-right: 0.42rem;
-    }
-
-    div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"],
-    div[data-testid="stColumn"]:has(.right-col-marker) > div[data-testid="stVerticalBlock"] {
-        padding-left: 0.36rem;
-        padding-right: 0.36rem;
-    }
-
-    div[data-testid="stColumn"]:has(.top-left-marker),
-    div[data-testid="stColumn"]:has(.top-center-marker),
-    div[data-testid="stColumn"]:has(.top-right-marker),
-    div[data-testid="stColumn"]:has(.left-col-marker),
-    div[data-testid="stColumn"]:has(.right-col-marker) {
-        background: #ffffff;
-    }
-
-    div[data-testid="stColumn"]:has(.top-left-marker),
-    div[data-testid="stColumn"]:has(.left-col-marker) {
-        border-left: 1px solid var(--line);
-        border-right: 1px solid var(--line);
-    }
-
-    div[data-testid="stColumn"]:has(.top-center-marker),
-    div[data-testid="stColumn"]:has(.center-col-marker) {
-        border-left: 1px solid var(--line);
-        border-right: 1px solid var(--line);
-    }
-
-    div[data-testid="stColumn"]:has(.top-right-marker),
-    div[data-testid="stColumn"]:has(.right-col-marker) {
-        border-left: none;
-        border-right: 1px solid var(--line);
-    }
-
-    div[data-testid="stColumn"]:has(.left-col-marker),
-    div[data-testid="stColumn"]:has(.right-col-marker) {
-        border-bottom: 1px solid var(--line);
-    }
-
-    .new-convo-gap-top {
-        height: 0.32rem;
-    }
-
-    .new-convo-gap-bottom {
-        height: 0.48rem;
-    }
-
-    .thread-card {
+    .thread-card {{
         border: 1px solid transparent;
-        border-radius: 12px;
-        padding: 0.45rem 0.46rem;
+        border-radius: 10px;
+        padding: 0.5rem 0.6rem;
         background: transparent;
-        margin-bottom: 0.08rem;
+        margin-bottom: 2px;
         cursor: pointer;
-    }
+        transition: all 0.15s ease;
+    }}
 
-    .thread-card:hover {
-        border-color: #d7e2f0;
-        background: #f7fbff;
-    }
+    .thread-card:hover {{
+        background: rgba(0, 0, 0, 0.04);
+    }}
 
-    .thread-row {
+    .thread-row {{
         display: flex;
         align-items: flex-start;
         gap: 0.5rem;
-    }
+    }}
 
-    .thread-icon {
+    .thread-icon {{
         font-family: 'Material Symbols Outlined';
         font-size: 1rem;
-        color: #94abc4;
+        color: #94a3b8;
         line-height: 1;
-        margin-top: 0.05rem;
-    }
+        margin-top: 1px;
+    }}
 
-    .thread-title {
-        font-size: 0.84rem;
+    .thread-title {{
+        font-size: 0.8rem;
         font-weight: 500;
-        color: #5f7592;
+        color: #475569;
         margin: 0;
-        line-height: 1.2;
-    }
+        line-height: 1.4;
+    }}
 
-    .thread-meta {
-        margin-top: 0.22rem;
-        font-size: 0.72rem;
-        color: #88a0bd;
-    }
+    .thread-meta {{
+        margin-top: 2px;
+        font-size: 0.65rem;
+        color: #94a3b8;
+    }}
 
-    .thread-active {
-        border-color: #d7e2f0;
-        background: #f7fbff;
-    }
+    .thread-active {{
+        border-color: var(--brand-border) !important;
+        background: var(--brand-bg) !important;
+    }}
 
-    .profile-footer {
-        margin-top: 0.55rem;
-        padding-top: 0.65rem;
-    }
+    .thread-active .thread-title {{
+        color: var(--brand-text);
+        font-weight: 600;
+    }}
 
-    .profile-footer-row {
+    .thread-active .thread-icon {{
+        color: var(--brand);
+    }}
+
+    /* ── PROFILE FOOTER ── */
+    .profile-footer {{
+        margin-top: 0;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--line);
+        background: var(--sidebar-bg);
+    }}
+
+    .left-rail-spacer {{
+        height: 100%;
+    }}
+
+    .profile-footer-row {{
         display: flex;
         align-items: center;
-        gap: 0.7rem;
-    }
+        gap: 0.6rem;
+        padding: 0.6rem;
+        border-radius: 10px;
+        transition: background 0.15s ease;
+    }}
 
-    .profile-avatar {
-        width: 34px;
-        height: 34px;
+    .profile-footer-row:hover {{
+        background: rgba(0, 0, 0, 0.04);
+    }}
+
+    .profile-avatar {{
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        border: 1px solid #efc35f;
-        background: #ffe8bb;
-        color: #bf7a10;
-        font-weight: 700;
+        border: none;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #ffffff;
+        font-weight: 600;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.9rem;
-    }
+        font-size: 0.8rem;
+        flex-shrink: 0;
+        box-shadow: 0 2px 4px rgb(245 158 11 / 0.25);
+    }}
 
-    .profile-name {
-        font-size: 0.83rem;
-        font-weight: 500;
-        color: #2f425f;
-        margin: 0;
-        line-height: 1.2;
-    }
-
-    .profile-email {
-        font-size: 0.72rem;
-        color: #88a0bd;
-        margin: 0.1rem 0 0 0;
-    }
-
-    .rail-close {
-        color: #99aac0;
-        font-size: 1.25rem;
-        font-weight: 400;
-        line-height: 1;
-    }
-
-    .top-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.08rem 0.1rem 0.2rem;
-    }
-
-    .center-title {
-        font-size: 0.92rem;
+    .profile-name {{
+        font-size: 0.8rem;
         font-weight: 600;
         color: var(--text);
         margin: 0;
-    }
+        line-height: 1.2;
+    }}
 
-    .center-subtitle {
-        margin: 0.15rem 0 0 0;
-        color: #8aa0b9;
-        font-size: 0.82rem;
-    }
+    .profile-email {{
+        font-size: 0.7rem;
+        color: var(--muted);
+        margin: 0.1rem 0 0 0;
+    }}
 
-    .hero-chip {
-        margin: 0.45rem auto;
+    /* ── HERO SECTION ── */
+    .hero-chip {{
+        margin: 0.5rem auto;
         width: fit-content;
-        border: 1px solid #f0ca7e;
-        background: #fff7e8;
-        color: #d58a11;
+        border: 1px solid var(--brand-border);
+        background: var(--brand-bg);
+        color: var(--brand-text);
         border-radius: 999px;
-        padding: 0.34rem 0.92rem;
-        font-size: 0.84rem;
+        padding: 0.3rem 0.85rem;
+        font-size: 0.75rem;
         font-weight: 500;
-    }
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }}
 
-    .hero-title {
+    .home-hero {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         text-align: center;
-        font-size: 2.12rem;
-        line-height: 1.12;
-        color: #1d2a43;
-        margin: 0.45rem 0 0.3rem;
-        font-weight: 700;
-    }
+    }}
 
-    .hero-subtitle {
+    .hero-title {{
         text-align: center;
-        color: #657a96;
-        font-size: 1.15rem;
+        font-size: 2rem;
+        line-height: 1.15;
+        color: var(--text);
+        margin: 0.6rem 0 0.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }}
+
+    .hero-subtitle {{
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.9rem;
         margin: 0;
-        font-weight: 500;
-    }
+        font-weight: 400;
+        line-height: 1.6;
+    }}
 
-    .hero-note {
+    .hero-note {{
         text-align: center;
-        color: #8ca0ba;
+        color: #94a3b8;
         margin-top: 0.25rem;
-        font-size: 0.95rem;
-    }
+        font-size: 0.75rem;
+    }}
 
-    .tile-card {
-        border-radius: 12px;
-        border: 1px solid var(--line);
-        padding: 0.54rem 0.72rem;
-        margin-bottom: 0.35rem;
-    }
+    /* ── TOPIC TILES ── */
+    .home-tiles-marker {{
+        display: none !important;
+    }}
 
-    .tile-row {
+    div[data-testid="stColumn"]:has(.center-col-marker) > div[data-testid="stVerticalBlock"]:has(.home-tiles-marker) > div[data-testid="stHorizontalBlock"] {{
+        max-width: var(--chat-w);
+        width: 100%;
+        margin: 0 auto !important;
+        gap: 0.65rem !important;
+        column-gap: 0.65rem !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.center-col-marker) > div[data-testid="stVerticalBlock"]:has(.home-tiles-marker) > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {{
+        padding: 0 !important;
+    }}
+
+    .tile-card {{
+        border-radius: var(--radius);
+        border: 1px solid;
+        padding: 0.875rem 1rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }}
+
+    .tile-card:hover {{
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }}
+
+    .tile-row {{
         display: flex;
         align-items: flex-start;
-        gap: 0.55rem;
-    }
+        gap: 0.75rem;
+    }}
 
-    .tile-icon {
+    .tile-icon {{
         font-family: 'Material Symbols Outlined';
         font-size: 1.1rem;
         line-height: 1;
-        margin-top: 0.06rem;
-        color: #d9840f;
-    }
+        margin-top: 2px;
+    }}
 
-    .tile-title {
+    .tile-title {{
         margin: 0;
-        font-size: 0.86rem;
+        font-size: 0.875rem;
         font-weight: 600;
-        color: #2f425f;
-    }
+        color: #334155;
+        line-height: 1.4;
+    }}
 
-    .tile-subtitle {
-        margin: 0.2rem 0 0 0;
-        color: #7f95af;
-        font-size: 0.78rem;
-    }
+    .tile-subtitle {{
+        margin: 2px 0 0 0;
+        color: var(--muted);
+        font-size: 0.75rem;
+        line-height: 1.4;
+    }}
 
-    .chat-note {
+    /* ── CHAT ── */
+    .chat-messages-container {{
+        max-width: var(--chat-w);
+        margin: 0 auto;
+        padding: 1.5rem 1.5rem 0.5rem;
+    }}
+
+    .chat-input-wrap {{
+        margin-top: 0.15rem;
+        max-width: var(--chat-w);
+        margin-left: auto;
+        margin-right: auto;
+    }}
+
+    .chat-note {{
         text-align: center;
-        font-size: 0.74rem;
-        color: #8ea1b8;
-        margin-top: 0.45rem;
-    }
+        font-size: 0.65rem;
+        color: #94a3b8;
+        margin-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }}
 
-    .user-bubble {
-        background: #f8a600;
+    .user-bubble {{
+        background: linear-gradient(135deg, #f59e0b, #d97706);
         color: white;
-        border-radius: 16px;
-        padding: 1rem 1.1rem;
-        font-size: 0.9rem;
-        font-weight: 500;
-        margin-bottom: 0.7rem;
-    }
+        border-radius: 18px 4px 18px 18px;
+        padding: 0.8rem 1.1rem;
+        font-size: 0.875rem;
+        font-weight: 400;
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+        box-shadow: 0 2px 8px rgb(245 158 11 / 0.2);
+    }}
 
-    .assistant-bubble {
-        border: 1px solid #d7dfe9;
-        border-radius: 16px;
-        padding: 1rem 1.1rem;
-        background: #ffffff;
-        color: #2f425f;
-        font-size: 0.9rem;
-    }
-
-    .requests-empty {
-        text-align: center;
-        color: #8ba0b8;
-        border: 1px dashed var(--line);
-        border-radius: 12px;
-        padding: 1.2rem;
-        background: #fbfdff;
-        margin-top: 0.8rem;
-    }
-
-    .request-row {
+    .assistant-bubble {{
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0.55rem 0.64rem;
-        background: #ffffff;
-        margin-bottom: 0.4rem;
-    }
+        border-radius: 4px 18px 18px 18px;
+        padding: 0.9rem 1.1rem;
+        background: var(--panel);
+        color: var(--text);
+        font-size: 0.875rem;
+        line-height: 1.6;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 0.75rem;
+    }}
 
-    .request-title {
-        font-size: 0.88rem;
+    /* ── REQUESTS PANEL ── */
+    .requests-empty {{
+        text-align: center;
+        color: var(--muted);
+        border: 2px dashed var(--line);
+        border-radius: var(--radius);
+        padding: 2.5rem 1rem;
+        background: transparent;
+        margin-top: 0.5rem;
+    }}
+
+    .request-row {{
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 0.875rem 1rem;
+        background: var(--panel);
+        margin-bottom: 0.5rem;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.15s ease;
+    }}
+
+    .request-row:hover {{
+        box-shadow: var(--shadow-md);
+    }}
+
+    .request-title {{
+        font-size: 0.813rem;
         font-weight: 500;
-        color: #2a3e5b;
+        color: var(--text);
         margin: 0;
-    }
+        line-height: 1.4;
+    }}
 
-    .request-meta {
-        margin-top: 0.22rem;
-        color: #87a0bd;
-        font-size: 0.76rem;
-    }
+    .request-meta {{
+        margin-top: 0.35rem;
+        color: var(--muted);
+        font-size: 0.65rem;
+    }}
 
-    .status-pill {
+    .status-pill {{
         display: inline-block;
         border-radius: 999px;
-        padding: 0.2rem 0.55rem;
-        font-size: 0.7rem;
+        padding: 0.2rem 0.6rem;
+        font-size: 0.65rem;
         font-weight: 600;
         border: 1px solid;
         margin-top: 0.35rem;
-    }
+        letter-spacing: 0.02em;
+    }}
 
-    .status-pending {
-        color: #c77709;
-        border-color: #f2cf8f;
-        background: #fff8e9;
-    }
+    .status-pending {{
+        color: #d97706;
+        border-color: var(--brand-border);
+        background: var(--brand-bg);
+    }}
 
-    .status-in-review {
-        color: #0d7db2;
-        border-color: #93cde9;
-        background: #eef8ff;
-    }
+    .status-in-review {{
+        color: #0284c7;
+        border-color: #bae6fd;
+        background: #f0f9ff;
+    }}
 
-    .status-resolved {
-        color: #19855c;
-        border-color: #9edfc3;
-        background: #eefcf4;
-    }
+    .status-resolved {{
+        color: #059669;
+        border-color: #a7f3d0;
+        background: #ecfdf5;
+    }}
 
-    .metric-card {
-        border: 1px solid #cfd8e5;
-        border-radius: 12px;
-        padding: 0.56rem 0.24rem 0.4rem;
+    /* ── METRICS ── */
+    .metric-card {{
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 0.6rem 0.5rem;
         text-align: center;
-        background: #f4f8fc;
-    }
+        background: var(--panel);
+        box-shadow: var(--shadow-sm);
+    }}
 
-    .metric-num {
-        font-size: 1.02rem;
+    .metric-num {{
+        font-size: 1.25rem;
         font-weight: 700;
         margin: 0 0 0.12rem 0;
-    }
+    }}
 
-    .metric-label {
-        margin: 0.03rem 0 0 0;
-        color: #8b9fb8;
-        font-size: 0.78rem;
-        letter-spacing: 0.05em;
+    .metric-label {{
+        margin: 2px 0 0 0;
+        color: var(--muted);
+        font-size: 0.6rem;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         font-weight: 600;
         white-space: nowrap;
-    }
+    }}
 
-    .stButton > button {
-        border-radius: 9px;
-        border: 1px solid #d8e1ec;
-        color: #3f5576;
-        font-weight: 500;
-        background: #fbfdff;
-        font-size: 0.78rem;
-        line-height: 1.1;
-        min-height: 2.08rem;
-        padding-top: 0.3rem;
-        padding-bottom: 0.3rem;
-    }
-
-    .stButton > button:hover {
-        border-color: #f2c25e;
-        color: #bc790f;
-        background: #fff9ed;
-    }
-
-    div[data-testid="stSelectbox"] > div[data-baseweb="select"] > div {
-        border-radius: 12px;
-        border: 1px solid #d6e0ec;
-        background: #fbfdff;
-        min-height: 46px;
-    }
-
-    div[data-testid="stSegmentedControl"] > div {
-        border: 1px solid transparent;
+    /* ── STREAMLIT WIDGET OVERRIDES ── */
+    .stButton > button {{
         border-radius: 10px;
-        background: transparent;
-        gap: 0.35rem;
-    }
+        border: 1px solid var(--line);
+        color: #475569;
+        font-weight: 500;
+        background: var(--panel);
+        font-size: 0.813rem;
+        line-height: 1.25;
+        min-height: 2.25rem;
+        padding: 0.45rem 0.75rem;
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow-sm);
+    }}
 
-    div[data-testid="stSegmentedControl"] label {
-        border-radius: 10px !important;
-        border: none !important;
+    .stButton > button:hover {{
+        border-color: var(--brand-border);
+        color: var(--brand-text);
+        background: var(--brand-bg);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }}
+
+    div[data-testid="stSelectbox"] > div[data-baseweb="select"] > div {{
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        min-height: 44px;
+        box-shadow: var(--shadow-sm);
+    }}
+
+    div[data-testid="stSegmentedControl"] > div {{
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--sidebar-bg);
+        gap: 0.25rem;
+        padding: 0.2rem;
+    }}
+
+    div[data-testid="stSegmentedControl"] label {{
+        border-radius: 8px !important;
+        border: 1px solid transparent !important;
         background: transparent !important;
-        padding: 0.16rem 0.56rem !important;
-        color: #667d98 !important;
-        font-weight: 600 !important;
-        font-size: 0.82rem !important;
-    }
+        padding: 0.3rem 0.625rem !important;
+        color: var(--muted) !important;
+        font-weight: 500 !important;
+        font-size: 0.75rem !important;
+        transition: all 0.15s ease !important;
+    }}
 
-    div[data-testid="stSegmentedControl"] label[aria-checked="true"] {
-        background: #fff3d9 !important;
-        color: #c7830f !important;
-        border: 1px solid #f0ca7e !important;
-    }
+    div[data-testid="stSegmentedControl"] label:hover {{
+        color: var(--text) !important;
+        background: var(--panel) !important;
+    }}
 
-    .chat-input-wrap {
-        margin-top: 0.15rem;
-    }
+    div[data-testid="stSegmentedControl"] label[aria-checked="true"] {{
+        background: var(--panel) !important;
+        color: var(--brand-text) !important;
+        border: 1px solid var(--brand-border) !important;
+        box-shadow: var(--shadow-sm) !important;
+    }}
 
-    div[data-testid="stChatInput"] {
-        border: 1px solid #bfd4f2;
-        border-radius: 14px;
-        background: #fbfdff;
-        box-shadow: inset 0 0 0 1px #dbe8fb;
-    }
+    /* ── CHAT INPUT ── */
+    div[data-testid="stChatInput"] {{
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: var(--shadow-md);
+        max-width: var(--chat-w);
+        margin: 0.2rem auto 0.1rem !important;
+    }}
 
-    div[data-testid="stChatInput"] > div {
+    div[data-testid="stChatInput"] > div {{
         border: none !important;
         box-shadow: none !important;
         background: transparent !important;
-    }
+    }}
 
-    div[data-testid="stChatInput"]:focus-within {
-        border-color: #8fb4e9;
-        box-shadow: 0 0 0 1px #bcd4f3 inset;
-    }
+    div[data-testid="stChatInput"]:focus-within {{
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-md);
+    }}
 
-    @media (max-width: 1200px) {
-        .hero-title { font-size: 1.6rem; }
-        .hero-subtitle { font-size: 1.0rem; }
-        .hero-note { font-size: 0.85rem; }
-    }
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1200px) {{
+        .hero-title {{ font-size: 1.5rem; }}
+        .hero-subtitle {{ font-size: 0.8125rem; }}
+        .hero-note {{ font-size: 0.6875rem; }}
+        [data-testid="stAppViewContainer"] > .main {{ padding: 0.55rem !important; }}
+        .main .block-container,
+        [data-testid="stMainBlockContainer"] {{ border-radius: 10px !important; }}
+    }}
+
+    /* ── SCROLLBARS (WebKit) ── */
+    ::-webkit-scrollbar {{
+        width: 6px;
+        height: 6px;
+    }}
+    ::-webkit-scrollbar-track {{
+        background: transparent;
+    }}
+    ::-webkit-scrollbar-thumb {{
+        background: rgba(148, 163, 184, 0.35);
+        border-radius: 10px;
+    }}
+    ::-webkit-scrollbar-thumb:hover {{
+        background: rgba(100, 116, 139, 0.5);
+    }}
+    ::-webkit-scrollbar-corner {{
+        background: transparent;
+    }}
+
+    /* ── SCROLLBARS (Firefox) ── */
+    * {{
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148,163,184,0.35) transparent;
+    }}
+
+    /* ── SMOOTH TRANSITIONS ── */
+    div[data-testid="stColumn"] {{
+        transition: width 0.3s ease, flex 0.3s ease;
+    }}
 </style>
+""",
+    unsafe_allow_html=True,
+)
+
+# ── Client-side JS for polish ──
+st.markdown(
+    """
+<script>
+(function() {
+    // Debounced resize handler for responsive adjustments
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            document.querySelectorAll('.tile-card').forEach(function(card) {
+                if (window.innerWidth < 900) {
+                    card.style.padding = '0.65rem 0.75rem';
+                } else {
+                    card.style.padding = '';
+                }
+            });
+        }, 150);
+    });
+
+    // Smooth scroll for chat container
+    const observer = new MutationObserver(function(mutations) {
+        const chatContainer = document.querySelector('.chat-messages-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    });
+
+    const target = document.querySelector('[data-testid="stAppViewContainer"]');
+    if (target) {
+        observer.observe(target, { childList: true, subtree: true });
+    }
+})();
+</script>
 """,
     unsafe_allow_html=True,
 )
@@ -686,56 +1021,72 @@ HOME_TILES = [
         "Leave & Time Off",
         "Annual leave, sick days, parental leave",
         "event_note",
-        "var(--tile-a)",
+        "#fffbeb",
+        "#fde68a",
+        "#d97706",
         "What leave policies does Acme offer?",
     ),
     (
         "Payroll & Pay",
         "Pay dates, payslips, expenses",
         "payments",
-        "var(--tile-b)",
+        "#ecfdf5",
+        "#a7f3d0",
+        "#059669",
         "When is payday and how do I access payslips?",
     ),
     (
         "Benefits",
         "Health, pension, gym, perks",
         "favorite",
-        "var(--tile-c)",
+        "#f0f9ff",
+        "#bae6fd",
+        "#0284c7",
         "What benefits am I eligible for?",
     ),
     (
         "Company Policy",
         "Remote work, code of conduct, hours",
         "menu_book",
-        "var(--tile-d)",
+        "#fff7ed",
+        "#fed7aa",
+        "#ea580c",
         "What is Acme's remote work policy?",
     ),
     (
         "Onboarding",
         "First day prep, probation, setup",
         "person_add",
-        "var(--tile-e)",
+        "#fff1f2",
+        "#fecdd3",
+        "#e11d48",
         "What are onboarding and probation policies?",
     ),
     (
         "Documents",
         "Letters, payslips, tax forms",
         "description",
-        "var(--tile-f)",
+        "#f0fdfa",
+        "#99f6e4",
+        "#0d9488",
         "How do I get employment letters and tax documents?",
     ),
     (
         "Career & Growth",
         "Internal jobs, promotions, reviews",
         "work",
-        "var(--tile-g)",
+        "#f5f3ff",
+        "#ddd6fe",
+        "#7c3aed",
         "How does performance review and promotion work?",
     ),
     (
         "Wellbeing & Support",
         "EAP, mental health, occupational health",
         "health_and_safety",
-        "var(--tile-h)",
+        "#fffbeb",
+        "#fde68a",
+        "#b45309",
         "What wellbeing resources does Acme provide?",
     ),
 ]
@@ -875,7 +1226,9 @@ def _active_agent(user_email: str, thread_id: str) -> HRAgentLangGraph:
     key = f"{user_email}:{thread_id}"
     agent = st.session_state.agents_by_thread.get(key)
     if agent is None:
-        agent = HRAgentLangGraph(user_email=user_email, session_id=f"thread_{thread_id}")
+        agent = HRAgentLangGraph(
+            user_email=user_email, session_id=f"thread_{thread_id}"
+        )
         st.session_state.agents_by_thread[key] = agent
     return agent
 
@@ -895,7 +1248,9 @@ def _reset_user_threads(user_email: str) -> None:
             "threads": [],
         }
     stale_keys = [
-        key for key in st.session_state.agents_by_thread.keys() if key.startswith(f"{user_email}:")
+        key
+        for key in st.session_state.agents_by_thread.keys()
+        if key.startswith(f"{user_email}:")
     ]
     for key in stale_keys:
         del st.session_state.agents_by_thread[key]
@@ -926,7 +1281,9 @@ employee_service = get_employee_service()
 escalation_service = get_escalation_service()
 
 employees = repo.list_all_for_dropdown()
-employee_options = {f"{row['legal_name']} • {row['title']}": row["email"] for row in employees}
+employee_options = {
+    f"{row['legal_name']} • {row['title']}": row["email"] for row in employees
+}
 employee_labels = list(employee_options.keys())
 if not employee_labels:
     st.error("No employees found in seed data.")
@@ -958,7 +1315,7 @@ if prompt_param is not None:
     try:
         tile_idx = int(prompt_param)
         if 0 <= tile_idx < len(HOME_TILES):
-            st.session_state.queued_prompt = HOME_TILES[tile_idx][4]
+            st.session_state.queued_prompt = HOME_TILES[tile_idx][6]
     except ValueError:
         pass
     del st.query_params["prompt"]
@@ -981,11 +1338,11 @@ current_employee_id = requester_context.get("employee_id", 0)
 # ============================================================================
 
 if st.session_state.show_requests_panel:
-    header_left, header_center, header_right = st.columns([3.0, 10.1, 4.5], gap="xxsmall")
-    left_col, center_col, right_col = st.columns([3.0, 10.1, 4.5], gap="xxsmall")
+    header_left, header_center, header_right = st.columns([2.8, 10.4, 4.3], gap=None)
+    left_col, center_col, right_col = st.columns([2.8, 10.4, 4.3], gap=None)
 else:
-    header_left, header_center = st.columns([3.2, 14.2], gap="xxsmall")
-    left_col, center_col = st.columns([3.2, 14.2], gap="xxsmall")
+    header_left, header_center = st.columns([2.8, 14.7], gap=None)
+    left_col, center_col = st.columns([2.8, 14.7], gap=None)
     header_right = None
     right_col = None
 
@@ -997,7 +1354,7 @@ with header_left:
         <div class="panel-top">
             <div class="left-head">
                 <span class="logo-box">P</span>
-                <span style="font-size:1.34rem;">PingHR</span>
+                <span style="font-size:0.938rem;font-weight:700;letter-spacing:-0.03em;color:#1e293b;">PingHR</span>
             </div>
         </div>
         """,
@@ -1006,31 +1363,48 @@ with header_left:
 
 with header_center:
     st.markdown('<div class="top-center-marker"></div>', unsafe_allow_html=True)
-    top_title = "Employee HR Assistant"
-    if active_thread["messages"]:
-        top_title = f"← {_short_text(active_thread['title'], 70)}"
+    has_messages = bool(active_thread["messages"])
+    top_title = _short_text(active_thread["title"], 70) if has_messages else "PingHR"
     safe_top_title = html.escape(top_title)
-    st.markdown(
-        f"""
-        <div class="panel-top top-center-bar">
-            <p class="top-center-title">{safe_top_title}</p>
-            <a class="top-requests-link" target="_self" href="?thread={active_thread['id']}&toggle_requests=1">
-                <span class="top-requests-icon">inventory_2</span>
-                <span>My Requests</span>
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    requests_active_class = " active" if st.session_state.show_requests_panel else ""
+
+    back_arrow_html = ""
+    subtitle_html = ""
+    if has_messages:
+        back_arrow_html = (
+            f'<a class="back-arrow" target="_self" href="?thread={active_thread["id"]}" title="Back to home">'
+            '<span class="material-symbols-outlined" style="font-size:1.1rem;">arrow_back</span>'
+            "</a>"
+        )
+        subtitle_html = '<p class="top-center-subtitle">Employee HR Assistant</p>'
+
+    # Build the HTML as a single string without blank lines to prevent
+    # Streamlit's Markdown parser from breaking the HTML block.
+    header_center_html = (
+        '<div class="panel-top top-center-bar">'
+        + back_arrow_html
+        + '<div class="top-bar-info">'
+        + f'<p class="top-center-title">{safe_top_title}</p>'
+        + subtitle_html
+        + "</div>"
+        + f'<a class="top-requests-link{requests_active_class}" target="_self" href="?thread={active_thread["id"]}&amp;toggle_requests=1">'
+        + '<span class="top-requests-icon">confirmation_number</span>'
+        + "<span>My Requests</span>"
+        + "</a>"
+        + "</div>"
     )
+    st.markdown(header_center_html, unsafe_allow_html=True)
 
 if header_right:
     with header_right:
         st.markdown('<div class="top-right-marker"></div>', unsafe_allow_html=True)
         st.markdown(
-            """
+            f"""
             <div class="panel-top">
                 <p class="rail-title">My Requests</p>
-                <span class="rail-close">×</span>
+                <a href="?thread={active_thread['id']}&toggle_requests=1" target="_self" class="rail-close" title="Close">
+                    <span class="material-symbols-outlined" style="font-size:1rem;">close</span>
+                </a>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1073,13 +1447,16 @@ with left_col:
         )
 
     st.markdown('<div class="thin-divider"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="left-rail-spacer"></div>', unsafe_allow_html=True)
 
-    display_name = emp_details.get("preferred_name") or emp_details.get("legal_name", "User")
+    display_name = emp_details.get("preferred_name") or emp_details.get(
+        "legal_name", "User"
+    )
     st.markdown(
         f"""
         <div class="profile-footer">
             <div class="profile-footer-row">
-                <div class="profile-avatar">{_initials(display_name)}</div>
+                <div class="profile-avatar">{display_name[0].upper() if display_name else "U"}</div>
                 <div>
                     <p class="profile-name">{display_name}</p>
                     <p class="profile-email">{current_email}</p>
@@ -1106,24 +1483,35 @@ with center_col:
         first_name = display_name.split()[0] if display_name else "there"
         st.markdown(
             f"""
-            <div class="hero-chip">✨ Your HR assistant · Acme Corp</div>
-            <h1 class="hero-title">Hi {first_name}, what can I help with?</h1>
-            <p class="hero-subtitle">Ask me anything about Acme's HR policies — leave, payroll, benefits, and more.</p>
-            <p class="hero-note">Sensitive queries are securely escalated to HR Ops.</p>
+            <div class="chat-messages-container home-hero" style="padding-top:3rem;">
+                <div class="hero-chip">✨ Your HR assistant · Acme Corp</div>
+                <h1 class="hero-title">Hi {first_name}, what can I help with?</h1>
+                <p class="hero-subtitle">Ask me anything about Acme's HR policies — leave, payroll, benefits, and more.</p>
+                <p class="hero-note">Sensitive queries are securely escalated to HR Ops.</p>
+            </div>
             """,
             unsafe_allow_html=True,
         )
 
+        st.markdown('<div class="home-tiles-marker"></div>', unsafe_allow_html=True)
         col_a, col_b = st.columns(2, gap="small")
-        for idx, (title, subtitle, icon_name, bg_color, _question) in enumerate(HOME_TILES):
+        for idx, (
+            title,
+            subtitle,
+            icon_name,
+            bg_color,
+            border_color,
+            icon_color,
+            _question,
+        ) in enumerate(HOME_TILES):
             target_col = col_a if idx % 2 == 0 else col_b
             with target_col:
                 st.markdown(
                     f"""
                     <a class="thread-link" target="_self" href="?thread={active_thread['id']}&prompt={idx}">
-                        <div class="tile-card" style="background:{bg_color};">
+                        <div class="tile-card" style="background:{bg_color};border-color:{border_color};">
                             <div class="tile-row">
-                                <span class="tile-icon">{icon_name}</span>
+                                <span class="tile-icon" style="color:{icon_color};">{icon_name}</span>
                                 <div>
                                     <p class="tile-title">{title}</p>
                                     <p class="tile-subtitle">{subtitle}</p>
@@ -1135,6 +1523,7 @@ with center_col:
                     unsafe_allow_html=True,
                 )
     else:
+        st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
         for idx, message in enumerate(active_thread["messages"]):
             if message["role"] == "user":
                 st.markdown(
@@ -1161,6 +1550,7 @@ with center_col:
                     else:
                         st.error(result.get("error", "Failed to escalate"))
                     st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="chat-input-wrap"></div>', unsafe_allow_html=True)
     user_prompt = st.chat_input(
@@ -1196,7 +1586,7 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <p class="metric-num" style="color:#e2901f;">{counts['pending']}</p>
+                    <p class="metric-num" style="color:#f59e0b;">{counts['pending']}</p>
                     <p class="metric-label">Pending</p>
                 </div>
                 """,
@@ -1206,7 +1596,7 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <p class="metric-num" style="color:#2098c5;">{counts['in_review']}</p>
+                    <p class="metric-num" style="color:#0ea5e9;">{counts['in_review']}</p>
                     <p class="metric-label">In Review</p>
                 </div>
                 """,
@@ -1216,7 +1606,7 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <p class="metric-num" style="color:#20a96f;">{counts['resolved']}</p>
+                    <p class="metric-num" style="color:#10b981;">{counts['resolved']}</p>
                     <p class="metric-label">Resolved</p>
                 </div>
                 """,
@@ -1251,8 +1641,8 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 """
                 <div class="requests-empty">
-                    <div style="font-size:1rem;font-weight:600;color:#6f87a3;">No requests found</div>
-                    <div style="margin-top:0.2rem;">Escalated queries will appear here</div>
+                    <div style="font-size:0.75rem;font-weight:500;color:#64748b;">No requests found</div>
+                    <div style="margin-top:0.25rem;font-size:10px;color:#94a3b8;">Escalated queries will appear here</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
