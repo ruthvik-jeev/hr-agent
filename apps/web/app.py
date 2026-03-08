@@ -33,7 +33,7 @@ st.set_page_config(
 # THEME
 # ============================================================================
 
-_css_version = "v4"  # bump to bust browser cache
+_css_version = "v5"  # bump to bust browser cache
 st.markdown(
     f"""
 <style data-version="{_css_version}">
@@ -185,7 +185,7 @@ st.markdown(
     div[data-testid="stColumn"]:has(.top-right-marker) {{
         background: var(--panel) !important;
         min-height: var(--header-h);
-        overflow: hidden;
+        overflow: visible;
     }}
 
     div[data-testid="stColumn"]:has(.top-left-marker) div[data-testid="stMarkdownContainer"]:has(.panel-top),
@@ -236,8 +236,21 @@ st.markdown(
     div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"] {{
         min-height: var(--header-h) !important;
         height: var(--header-h) !important;
-        overflow: hidden;
+        overflow: visible;
         justify-content: center;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-center-marker) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"],
+    div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] {{
+        height: var(--header-h) !important;
+        align-items: center !important;
+        margin: 0 !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.top-center-marker) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+    div[data-testid="stColumn"]:has(.top-right-marker) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {{
+        display: flex !important;
+        align-items: center !important;
     }}
 
     div[data-testid="stColumn"]:has(.top-left-marker) > div[data-testid="stVerticalBlock"] {{
@@ -343,7 +356,7 @@ st.markdown(
         gap: 0.75rem;
         width: 100%;
         min-width: 0;
-        padding-right: 0.95rem;
+        padding-right: 0;
     }}
 
     .top-center-title {{
@@ -431,6 +444,135 @@ st.markdown(
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+    }}
+
+    .header-requests-action-marker,
+    .header-requests-close-marker {{
+        display: none !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) > div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.header-requests-close-marker) > div[data-testid="stVerticalBlock"] {{
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: flex-end !important;
+        min-height: var(--header-h) !important;
+        height: var(--header-h) !important;
+        gap: 0 !important;
+    }}
+
+    /* Collapse the Streamlit wrapper around the marker so it takes no space */
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) > div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stMarkdown"] .header-requests-action-marker),
+    div[data-testid="stColumn"]:has(.header-requests-close-marker) > div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stMarkdown"] .header-requests-close-marker) {{
+        height: 0 !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-action-marker),
+    div[data-testid="stColumn"]:has(.header-requests-close-marker) {{
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) {{
+        padding-right: 0.55rem !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton {{
+        width: auto !important;
+        margin: 0 !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton > button {{
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 600;
+        min-height: 2rem;
+        padding: 0.35rem 0.8rem 0.35rem 0.55rem;
+        line-height: 1;
+        box-shadow: none;
+        margin: 0 !important;
+        transform: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.3rem !important;
+    }}
+
+    /* Icon via ::before pseudo-element */
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton > button::before {{
+        content: 'assignment';
+        font-family: 'Material Symbols Outlined';
+        font-size: 1rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        -webkit-font-smoothing: antialiased;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton > button:hover {{
+        color: #475569;
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+        box-shadow: none !important;
+        transform: none !important;
+    }}
+
+    /* Keep same style when panel is open — no blue highlight */
+    div[data-testid="stColumn"]:has(.header-requests-action-marker.active) .stButton > button {{
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        color: #64748b;
+        box-shadow: none;
+    }}
+
+    /* Override Streamlit's default focus / active blue ring */
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton > button:focus,
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton > button:active,
+    div[data-testid="stColumn"]:has(.header-requests-action-marker) .stButton > button:focus:not(:active) {{
+        background: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+        color: #64748b !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-close-marker) .stButton > button {{
+        border-radius: 8px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        min-height: 2rem;
+        padding: 0;
+        box-shadow: none;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1;
+        margin: 0 !important;
+        width: 2rem;
+        min-width: 2rem;
+        height: 2rem;
+        transform: none !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-close-marker) {{
+        padding-right: 0.3rem !important;
+    }}
+
+    div[data-testid="stColumn"]:has(.header-requests-close-marker) .stButton > button:hover {{
+        color: var(--text);
+        background: var(--bg);
+        border-color: var(--line);
+        box-shadow: none !important;
+        transform: none !important;
     }}
 
     /* ── RIGHT RAIL ── */
@@ -711,6 +853,45 @@ st.markdown(
         padding: 1.5rem 1.5rem 0.5rem;
     }}
 
+    .msg-row {{
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        margin-bottom: 0.8rem;
+    }}
+
+    .msg-user {{
+        justify-content: flex-end;
+    }}
+
+    .msg-assistant {{
+        justify-content: flex-start;
+    }}
+
+    .msg-avatar {{
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        flex-shrink: 0;
+        color: #64748b;
+        background: #f8fafc;
+        font-size: 1rem;
+        line-height: 1;
+    }}
+
+    .assistant-avatar {{
+        border-color: var(--brand-border);
+        color: var(--brand-text);
+        background: var(--brand-bg);
+        border-radius: 10px;
+        width: 2.1rem;
+        height: 2.1rem;
+    }}
+
     .chat-input-wrap {{
         margin-top: 0.15rem;
         max-width: var(--chat-w);
@@ -736,6 +917,8 @@ st.markdown(
         margin-bottom: 0.75rem;
         line-height: 1.6;
         box-shadow: 0 2px 8px rgb(245 158 11 / 0.2);
+        max-width: 36rem;
+        width: fit-content;
     }}
 
     .assistant-bubble {{
@@ -748,6 +931,8 @@ st.markdown(
         line-height: 1.6;
         box-shadow: var(--shadow-sm);
         margin-bottom: 0.75rem;
+        max-width: 40rem;
+        width: fit-content;
     }}
 
     /* ── REQUESTS PANEL ── */
@@ -1163,7 +1348,7 @@ def _ensure_state_for_user(user_email: str) -> None:
     if "agents_by_thread" not in st.session_state:
         st.session_state.agents_by_thread = {}
     if "show_requests_panel" not in st.session_state:
-        st.session_state.show_requests_panel = True
+        st.session_state.show_requests_panel = False
     if "request_filter" not in st.session_state:
         st.session_state.request_filter = "ALL"
     if "queued_prompt" not in st.session_state:
@@ -1267,7 +1452,7 @@ def _status_class(status: str) -> str:
 
 def _process_prompt(user_email: str, thread: dict, prompt: str) -> None:
     _append_message(thread, "user", prompt)
-    with st.spinner("Generating response..."):
+    with st.spinner("Thinking..."):
         response = _active_agent(user_email, thread["id"]).chat(prompt)
     _append_message(thread, "assistant", response)
 
@@ -1304,11 +1489,11 @@ current_label = st.session_state.selected_employee_label
 current_email = employee_options[current_label]
 
 _ensure_state_for_user(current_email)
-store = _get_store(current_email)
+current_store = _get_store(current_email)
 
 thread_param = st.query_params.get("thread")
-if thread_param and any(t["id"] == thread_param for t in store["threads"]):
-    store["active_thread_id"] = thread_param
+if thread_param and any(t["id"] == thread_param for t in current_store["threads"]):
+    current_store["active_thread_id"] = thread_param
 
 prompt_param = st.query_params.get("prompt")
 if prompt_param is not None:
@@ -1363,10 +1548,11 @@ with header_left:
 
 with header_center:
     st.markdown('<div class="top-center-marker"></div>', unsafe_allow_html=True)
+    center_info_col, center_action_col = st.columns([10.2, 2.0], gap=None)
+
     has_messages = bool(active_thread["messages"])
     top_title = _short_text(active_thread["title"], 70) if has_messages else "PingHR"
     safe_top_title = html.escape(top_title)
-    requests_active_class = " active" if st.session_state.show_requests_panel else ""
 
     back_arrow_html = ""
     subtitle_html = ""
@@ -1378,37 +1564,60 @@ with header_center:
         )
         subtitle_html = '<p class="top-center-subtitle">Employee HR Assistant</p>'
 
-    # Build the HTML as a single string without blank lines to prevent
-    # Streamlit's Markdown parser from breaking the HTML block.
-    header_center_html = (
-        '<div class="panel-top top-center-bar">'
-        + back_arrow_html
-        + '<div class="top-bar-info">'
-        + f'<p class="top-center-title">{safe_top_title}</p>'
-        + subtitle_html
-        + "</div>"
-        + f'<a class="top-requests-link{requests_active_class}" target="_self" href="?thread={active_thread["id"]}&amp;toggle_requests=1">'
-        + '<span class="top-requests-icon">confirmation_number</span>'
-        + "<span>My Requests</span>"
-        + "</a>"
-        + "</div>"
-    )
-    st.markdown(header_center_html, unsafe_allow_html=True)
+    with center_info_col:
+        # Build the HTML as a single string without blank lines to prevent
+        # Streamlit's Markdown parser from breaking the HTML block.
+        header_center_html = (
+            '<div class="panel-top top-center-bar">'
+            + back_arrow_html
+            + '<div class="top-bar-info">'
+            + f'<p class="top-center-title">{safe_top_title}</p>'
+            + subtitle_html
+            + "</div>"
+            + "</div>"
+        )
+        st.markdown(header_center_html, unsafe_allow_html=True)
+
+    with center_action_col:
+        active_marker = " active" if st.session_state.show_requests_panel else ""
+        st.markdown(
+            f'<div class="header-requests-action-marker{active_marker}"></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            "My Requests",
+            key="toggle_requests_header_btn",
+        ):
+            st.session_state.show_requests_panel = (
+                not st.session_state.show_requests_panel
+            )
+            st.rerun()
 
 if header_right:
     with header_right:
         st.markdown('<div class="top-right-marker"></div>', unsafe_allow_html=True)
-        st.markdown(
-            f"""
-            <div class="panel-top">
-                <p class="rail-title">My Requests</p>
-                <a href="?thread={active_thread['id']}&toggle_requests=1" target="_self" class="rail-close" title="Close">
-                    <span class="material-symbols-outlined" style="font-size:1rem;">close</span>
-                </a>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        right_title_col, right_action_col = st.columns([8.8, 1.2], gap=None)
+        with right_title_col:
+            st.markdown(
+                """
+                <div class="panel-top">
+                    <p class="rail-title">My Requests</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with right_action_col:
+            st.markdown(
+                '<div class="header-requests-close-marker"></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "✕",
+                key="toggle_requests_close_btn",
+                use_container_width=True,
+            ):
+                st.session_state.show_requests_panel = False
+                st.rerun()
 
 st.markdown('<div class="global-top-divider"></div>', unsafe_allow_html=True)
 st.markdown('<div class="post-top-gap"></div>', unsafe_allow_html=True)
@@ -1426,18 +1635,18 @@ with left_col:
         st.rerun()
     st.markdown('<div class="new-convo-gap-bottom"></div>', unsafe_allow_html=True)
 
-    for thread in store["threads"]:
-        is_active = thread["id"] == store["active_thread_id"]
+    for t_item in current_store["threads"]:
+        is_active = t_item["id"] == current_store["active_thread_id"]
         card_class = "thread-card thread-active" if is_active else "thread-card"
         st.markdown(
             f"""
-            <a class="thread-link" target="_self" href="?thread={thread['id']}">
+            <a class="thread-link" target="_self" href="?thread={t_item['id']}">
                 <div class="{card_class}">
                     <div class="thread-row">
                         <span class="thread-icon">chat_bubble_outline</span>
                         <div>
-                            <p class="thread-title">{_short_text(thread['title'], 28)}</p>
-                            <div class="thread-meta">● {_format_relative(thread.get('updated_at'))}</div>
+                            <p class="thread-title">{_short_text(t_item['title'], 28)}</p>
+                            <div class="thread-meta">● {_format_relative(t_item.get('updated_at'))}</div>
                         </div>
                     </div>
                 </div>
@@ -1475,7 +1684,7 @@ with center_col:
     st.markdown('<div class="center-col-marker"></div>', unsafe_allow_html=True)
     if st.session_state.queued_prompt:
         _process_prompt(current_email, active_thread, st.session_state.queued_prompt)
-        _sort_threads(store)
+        _sort_threads(current_store)
         st.session_state.queued_prompt = None
         st.rerun()
 
@@ -1527,12 +1736,22 @@ with center_col:
         for idx, message in enumerate(active_thread["messages"]):
             if message["role"] == "user":
                 st.markdown(
-                    f'<div class="user-bubble">{message["content"]}</div>',
+                    (
+                        '<div class="msg-row msg-user">'
+                        + f'<div class="user-bubble">{message["content"]}</div>'
+                        + '<span class="msg-avatar material-symbols-outlined">person</span>'
+                        + "</div>"
+                    ),
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    f'<div class="assistant-bubble">{message["content"]}</div>',
+                    (
+                        '<div class="msg-row msg-assistant">'
+                        + '<span class="msg-avatar assistant-avatar material-symbols-outlined">smart_toy</span>'
+                        + f'<div class="assistant-bubble">{message["content"]}</div>'
+                        + "</div>"
+                    ),
                     unsafe_allow_html=True,
                 )
                 if st.button(
@@ -1559,7 +1778,7 @@ with center_col:
     )
     if user_prompt:
         _process_prompt(current_email, active_thread, user_prompt)
-        _sort_threads(store)
+        _sort_threads(current_store)
         st.rerun()
 
     st.markdown(
@@ -1650,20 +1869,20 @@ if right_col and st.session_state.show_requests_panel:
         else:
             can_triage = current_role in {"HR", "MANAGER"}
             for item in requests:
-                status = item["status"]
+                item_status = item["status"]
                 st.markdown(
                     f"""
                     <div class="request-row">
                         <p class="request-title">#{item['escalation_id']} · {_short_text(item['source_message_excerpt'], 82)}</p>
                         <div class="request-meta">{item['requester_email']} · {_format_relative(item['updated_at'])}</div>
-                        <span class="status-pill {_status_class(status)}">{status.replace('_', ' ')}</span>
+                        <span class="status-pill {_status_class(item_status)}">{item_status.replace('_', ' ')}</span>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
                 if can_triage:
-                    if status == "PENDING":
+                    if item_status == "PENDING":
                         if st.button(
                             "Move to In Review",
                             key=f"triage_review_{item['escalation_id']}",
@@ -1680,7 +1899,7 @@ if right_col and st.session_state.show_requests_panel:
                             else:
                                 st.error(result.get("error", "Update failed"))
                             st.rerun()
-                    elif status == "IN_REVIEW":
+                    elif item_status == "IN_REVIEW":
                         if st.button(
                             "Mark Resolved",
                             key=f"triage_resolve_{item['escalation_id']}",
