@@ -24,7 +24,6 @@ services:
     runtime: static
     name: pinghr-ui
     rootDir: apps/web-ts
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
