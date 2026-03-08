@@ -43,6 +43,51 @@ class EscalationStatus(str, Enum):
     RESOLVED = "RESOLVED"
 
 
+class QueueStatus(str, Enum):
+    """Status for command center queue items."""
+
+    NEW = "NEW"
+    NEEDS_INFO = "NEEDS_INFO"
+    READY = "READY"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    ESCALATED = "ESCALATED"
+
+
+class RequestType(str, Enum):
+    """Top-level command center request categories."""
+
+    POLICY_QUESTION = "POLICY_QUESTION"
+    LEAVE_PROBLEM = "LEAVE_PROBLEM"
+    PAYROLL_QUERY = "PAYROLL_QUERY"
+    CLAIMS = "CLAIMS"
+    ONBOARDING_OFFBOARDING = "ONBOARDING_OFFBOARDING"
+    ESCALATION = "ESCALATION"
+
+
+class Priority(str, Enum):
+    """Queue priority level."""
+
+    P0 = "P0"
+    P1 = "P1"
+    P2 = "P2"
+
+
+class RiskLevel(str, Enum):
+    """Risk level for queue triage."""
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class QueueSource(str, Enum):
+    """Source of queue creation."""
+
+    AUTO = "AUTO"
+    MANUAL_ESCALATION = "MANUAL_ESCALATION"
+
+
 class PolicyEffect(str, Enum):
     """Effect of a policy rule."""
 

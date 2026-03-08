@@ -466,6 +466,33 @@ async def detailed_health_check():
 
 
 # ============================================================================
+# AUDIT ENDPOINTS
+# ============================================================================
+
+
+@app.get("/audit/export")
+async def export_audit_log(
+    user_email: Optional[str] = None,
+    resource_type: Optional[str] = None,
+    resource_id: Optional[str] = None,
+    limit: int = 500,
+    current_user: dict = Depends(get_current_user),
+):
+    """Export audit trail as JSON. Restricted to HR role."""
+    if current_user.get("role") not in {"HR", "ADMIN"}:
+        raise HTTPException(
+            status_code=403, detail="Only HR/Admin can export audit logs."
+        )
+    entries = audit_logger.export_json(
+        user_email=user_email,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        limit=limit,
+    )
+    return {"entries": entries, "count": len(entries)}
+
+
+# ============================================================================
 # MAIN ENTRY POINT
 # ============================================================================
 

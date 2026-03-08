@@ -11,6 +11,7 @@ Benefits:
 """
 
 from datetime import datetime, date
+from ..utils.decorators import sanitize_output
 from ..repositories import (
     get_employee_repo,
     get_holiday_repo,
@@ -254,14 +255,17 @@ class CompensationService:
     def __init__(self):
         self.repo = get_compensation_repo()
 
+    @sanitize_output("ssn", "bank_account", "routing_number")
     def get_compensation(self, employee_id: int) -> dict | None:
         """Get compensation details for an employee."""
         return self.repo.get_by_employee(employee_id)
 
+    @sanitize_output("ssn", "bank_account", "routing_number")
     def get_salary_history(self, employee_id: int) -> list[dict]:
         """Get salary history for an employee."""
         return self.repo.get_salary_history(employee_id)
 
+    @sanitize_output("ssn", "bank_account", "routing_number")
     def get_team_summary(self, manager_id: int) -> dict:
         """Get compensation summary for a manager's team."""
         return self.repo.get_team_summary(manager_id)
@@ -334,6 +338,23 @@ class EscalationService:
             source_message_excerpt=source_message_excerpt,
             status="PENDING",
         )
+
+        # Compatibility path: also capture this manual escalation in command center.
+        try:
+            from .command_center import get_command_center_service
+
+            get_command_center_service().ingest_user_turn(
+                requester_employee_id=requester_employee_id,
+                requester_email=requester_email,
+                thread_id=thread_id,
+                message=source_message_excerpt,
+                source="MANUAL_ESCALATION",
+                source_ref=str(escalation_id),
+            )
+        except Exception:
+            # Escalation flow must remain available even if command center write fails.
+            pass
+
         return {"success": True, "escalation_id": escalation_id}
 
     def list_requests(

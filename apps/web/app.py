@@ -12,9 +12,19 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from hr_agent.agent.langgraph_agent import HRAgentLangGraph
+from hr_agent.configs.config import settings
 from hr_agent.repositories.employee import EmployeeRepository
 from hr_agent.seed import seed_if_needed
 from hr_agent.services.base import get_employee_service, get_escalation_service
+from hr_agent.services.command_center import get_command_center_service
+from apps.web.command_center_helpers import (
+    action_label,
+    filter_queue_items,
+    risk_badge_text,
+    sla_badge_text,
+    sort_queue_items,
+    status_class as command_center_status_class,
+)
 
 load_dotenv()
 
@@ -33,7 +43,7 @@ st.set_page_config(
 # THEME
 # ============================================================================
 
-_css_version = "v5"  # bump to bust browser cache
+_css_version = "v6"  # bump to bust browser cache
 st.markdown(
     f"""
 <style data-version="{_css_version}">
@@ -985,22 +995,40 @@ st.markdown(
         letter-spacing: 0.02em;
     }}
 
-    .status-pending {{
-        color: #d97706;
-        border-color: var(--brand-border);
-        background: var(--brand-bg);
+    .status-new {{
+        color: #b45309;
+        border-color: #fde68a;
+        background: #fffbeb;
     }}
 
-    .status-in-review {{
+    .status-needs-info {{
+        color: #7c3aed;
+        border-color: #ddd6fe;
+        background: #f5f3ff;
+    }}
+
+    .status-ready {{
         color: #0284c7;
         border-color: #bae6fd;
         background: #f0f9ff;
+    }}
+
+    .status-in-progress {{
+        color: #0f766e;
+        border-color: #99f6e4;
+        background: #f0fdfa;
     }}
 
     .status-resolved {{
         color: #059669;
         border-color: #a7f3d0;
         background: #ecfdf5;
+    }}
+
+    .status-escalated {{
+        color: #b91c1c;
+        border-color: #fecaca;
+        background: #fef2f2;
     }}
 
     /* ── METRICS ── */
@@ -1443,15 +1471,22 @@ def _reset_user_threads(user_email: str) -> None:
 
 
 def _status_class(status: str) -> str:
-    if status == "IN_REVIEW":
-        return "status-in-review"
-    if status == "RESOLVED":
-        return "status-resolved"
-    return "status-pending"
+    return command_center_status_class(status)
 
 
 def _process_prompt(user_email: str, thread: dict, prompt: str) -> None:
     _append_message(thread, "user", prompt)
+    try:
+        command_center_service.ingest_user_turn(
+            requester_employee_id=current_employee_id,
+            requester_email=user_email,
+            thread_id=thread["id"],
+            message=prompt,
+            source="AUTO",
+        )
+    except Exception:
+        # Queue ingestion should not block primary chat flow.
+        pass
     with st.spinner("Thinking..."):
         response = _active_agent(user_email, thread["id"]).chat(prompt)
     _append_message(thread, "assistant", response)
@@ -1464,6 +1499,7 @@ def _process_prompt(user_email: str, thread: dict, prompt: str) -> None:
 repo = _get_employee_repo()
 employee_service = get_employee_service()
 escalation_service = get_escalation_service()
+command_center_service = get_command_center_service()
 
 employees = repo.list_all_for_dropdown()
 employee_options = {
@@ -1476,8 +1512,9 @@ if not employee_labels:
 
 if "selected_employee_label" not in st.session_state:
     default_idx = 0
+    preferred_email = (settings.demo_user_email or "").strip().lower()
     for idx, label in enumerate(employee_labels):
-        if "Alex Kim" in label:
+        if employee_options.get(label, "").strip().lower() == preferred_email:
             default_idx = idx
             break
     st.session_state.selected_employee_label = employee_labels[default_idx]
@@ -1585,7 +1622,7 @@ with header_center:
             unsafe_allow_html=True,
         )
         if st.button(
-            "My Requests",
+            "Command Center",
             key="toggle_requests_header_btn",
         ):
             st.session_state.show_requests_panel = (
@@ -1601,7 +1638,7 @@ if header_right:
             st.markdown(
                 """
                 <div class="panel-top">
-                    <p class="rail-title">My Requests</p>
+                    <p class="rail-title">Command Center</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1793,9 +1830,9 @@ with center_col:
 if right_col and st.session_state.show_requests_panel:
     with right_col:
         st.markdown('<div class="right-col-marker"></div>', unsafe_allow_html=True)
-        counts = escalation_service.list_counts(current_email)
+        counts = command_center_service.list_counts(current_email)
         st.markdown(
-            f'<p class="rail-subtitle">{counts["total"]} escalated queries</p>',
+            f'<p class="rail-subtitle">{counts["total"]} queue items</p>',
             unsafe_allow_html=True,
         )
         st.markdown('<div style="height:0.2rem;"></div>', unsafe_allow_html=True)
@@ -1805,8 +1842,8 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <p class="metric-num" style="color:#f59e0b;">{counts['pending']}</p>
-                    <p class="metric-label">Pending</p>
+                    <p class="metric-num" style="color:#f59e0b;">{counts['new']}</p>
+                    <p class="metric-label">New</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1815,8 +1852,8 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <p class="metric-num" style="color:#0ea5e9;">{counts['in_review']}</p>
-                    <p class="metric-label">In Review</p>
+                    <p class="metric-num" style="color:#0f766e;">{counts['in_progress']}</p>
+                    <p class="metric-label">In Progress</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1825,43 +1862,47 @@ if right_col and st.session_state.show_requests_panel:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <p class="metric-num" style="color:#10b981;">{counts['resolved']}</p>
-                    <p class="metric-label">Resolved</p>
+                    <p class="metric-num" style="color:#b91c1c;">{counts['escalated']}</p>
+                    <p class="metric-label">Escalated</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
         st.markdown('<div style="height:0.35rem;"></div>', unsafe_allow_html=True)
 
-        status_choice = st.segmented_control(
+        status_options = [
+            "ALL",
+            "NEW",
+            "NEEDS_INFO",
+            "READY",
+            "IN_PROGRESS",
+            "ESCALATED",
+            "RESOLVED",
+        ]
+        status_choice = st.selectbox(
             "Status Filter",
-            ["ALL", "PENDING", "IN_REVIEW", "RESOLVED"],
-            default=st.session_state.request_filter,
-            format_func=lambda s: {
-                "ALL": "All",
-                "PENDING": "Pending",
-                "IN_REVIEW": "In Review",
-                "RESOLVED": "Resolved",
-            }[s],
-            label_visibility="collapsed",
+            status_options,
+            index=(
+                status_options.index(st.session_state.request_filter)
+                if st.session_state.request_filter in status_options
+                else 0
+            ),
+            format_func=lambda s: s.replace("_", " ").title(),
         )
-        if status_choice is None:
-            status_choice = st.session_state.request_filter
         st.session_state.request_filter = status_choice
 
-        status_filter = None if status_choice == "ALL" else status_choice
-        requests = escalation_service.list_requests(
+        requests = command_center_service.list_requests(
             viewer_email=current_email,
-            status=status_filter,
             limit=100,
         )
+        requests = filter_queue_items(sort_queue_items(requests), status_choice)
 
         if not requests:
             st.markdown(
                 """
                 <div class="requests-empty">
                     <div style="font-size:0.75rem;font-weight:500;color:#64748b;">No requests found</div>
-                    <div style="margin-top:0.25rem;font-size:10px;color:#94a3b8;">Escalated queries will appear here</div>
+                    <div style="margin-top:0.25rem;font-size:10px;color:#94a3b8;">Command-center queue items will appear here</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1869,67 +1910,103 @@ if right_col and st.session_state.show_requests_panel:
         else:
             can_triage = current_role in {"HR", "MANAGER"}
             for item in requests:
-                item_status = item["status"]
+                item_status = str(item["status"])
+                missing_fields = item.get("missing_fields", [])
                 st.markdown(
                     f"""
                     <div class="request-row">
-                        <p class="request-title">#{item['escalation_id']} · {_short_text(item['source_message_excerpt'], 82)}</p>
+                        <p class="request-title">#{item['request_id']} · {_short_text(item['source_message_excerpt'], 82)}</p>
                         <div class="request-meta">{item['requester_email']} · {_format_relative(item['updated_at'])}</div>
+                        <div class="request-meta">{item['request_type']} / {item['request_subtype']}</div>
+                        <div class="request-meta">Next: {item.get('next_action') or 'none'}</div>
+                        <div class="request-meta">{sla_badge_text(item)} · {risk_badge_text(item)} · {item['priority']}</div>
                         <span class="status-pill {_status_class(item_status)}">{item_status.replace('_', ' ')}</span>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
-                if can_triage:
-                    if item_status == "PENDING":
-                        if st.button(
-                            "Move to In Review",
-                            key=f"triage_review_{item['escalation_id']}",
-                            use_container_width=True,
-                        ):
-                            result = escalation_service.transition_status(
-                                viewer_email=current_email,
-                                actor_employee_id=current_employee_id,
-                                escalation_id=item["escalation_id"],
-                                new_status="IN_REVIEW",
-                            )
-                            if result.get("success"):
-                                st.toast("Request moved to In Review")
-                            else:
-                                st.error(result.get("error", "Update failed"))
-                            st.rerun()
-                    elif item_status == "IN_REVIEW":
-                        if st.button(
-                            "Mark Resolved",
-                            key=f"triage_resolve_{item['escalation_id']}",
-                            use_container_width=True,
-                        ):
-                            result = escalation_service.transition_status(
-                                viewer_email=current_email,
-                                actor_employee_id=current_employee_id,
-                                escalation_id=item["escalation_id"],
-                                new_status="RESOLVED",
-                            )
-                            if result.get("success"):
-                                st.toast("Request resolved")
-                            else:
-                                st.error(result.get("error", "Update failed"))
-                            st.rerun()
+                if missing_fields:
+                    st.caption(f"Missing: {', '.join(missing_fields)}")
+
+                if not can_triage:
+                    continue
+
+                actions = command_center_service.get_available_actions(
+                    current_email, item
+                )
+                for action in actions:
+                    if st.button(
+                        action_label(action),
+                        key=f"triage_{action}_{item['request_id']}",
+                        use_container_width=True,
+                    ):
+                        result = command_center_service.execute_safe_action(
+                            viewer_email=current_email,
+                            actor_employee_id=current_employee_id,
+                            request_id=int(item["request_id"]),
+                            action=action,
+                        )
+                        if result.get("success"):
+                            st.toast("Queue item updated")
+                        else:
+                            st.error(result.get("error", "Update failed"))
+                        st.rerun()
+
+                # ── Priority change ──────────────────────────────────
+                current_priority = item.get("priority", "P1")
+                priority_options = ["P0", "P1", "P2"]
+                new_priority = st.selectbox(
+                    "Priority",
+                    priority_options,
+                    index=(
+                        priority_options.index(current_priority)
+                        if current_priority in priority_options
+                        else 1
+                    ),
+                    key=f"priority_{item['request_id']}",
+                )
+                if new_priority != current_priority:
+                    if st.button(
+                        f"Set {new_priority}",
+                        key=f"set_priority_{item['request_id']}",
+                    ):
+                        result = command_center_service.change_priority(
+                            viewer_email=current_email,
+                            actor_employee_id=current_employee_id,
+                            request_id=int(item["request_id"]),
+                            new_priority=new_priority,
+                        )
+                        if result.get("success"):
+                            st.toast(f"Priority changed to {new_priority}")
+                        else:
+                            st.error(result.get("error", "Update failed"))
+                        st.rerun()
+
+                # ── Assign / Reassign ────────────────────────────────
+                assigned_to = item.get("assigned_to_employee_id")
+                assign_label = (
+                    f"Assigned: #{assigned_to}" if assigned_to else "Unassigned"
+                )
+                assignee_id = st.number_input(
+                    assign_label,
+                    min_value=1,
+                    value=assigned_to if assigned_to else 1,
+                    step=1,
+                    key=f"assign_{item['request_id']}",
+                )
+                if st.button(
+                    "Assign",
+                    key=f"assign_btn_{item['request_id']}",
+                ):
+                    result = command_center_service.assign_request(
+                        viewer_email=current_email,
+                        actor_employee_id=current_employee_id,
+                        request_id=int(item["request_id"]),
+                        assignee_employee_id=int(assignee_id),
+                    )
+                    if result.get("success"):
+                        st.toast("Request assigned")
                     else:
-                        if st.button(
-                            "Reopen",
-                            key=f"triage_reopen_{item['escalation_id']}",
-                            use_container_width=True,
-                        ):
-                            result = escalation_service.transition_status(
-                                viewer_email=current_email,
-                                actor_employee_id=current_employee_id,
-                                escalation_id=item["escalation_id"],
-                                new_status="IN_REVIEW",
-                            )
-                            if result.get("success"):
-                                st.toast("Request reopened")
-                            else:
-                                st.error(result.get("error", "Update failed"))
-                            st.rerun()
+                        st.error(result.get("error", "Assignment failed"))
+                    st.rerun()

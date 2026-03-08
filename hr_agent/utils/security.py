@@ -176,21 +176,23 @@ class AuditLogger:
         success: bool = True,
     ):
         """Log an audit entry."""
+        # Redact sensitive fields before storing
+        from .validation import sanitize_for_logging
+
+        safe_details = sanitize_for_logging(details) if details else {}
+
         entry = AuditEntry(
             timestamp=datetime.utcnow(),
             action=action,
             user_email=user_email,
             resource_type=resource_type,
             resource_id=resource_id,
-            details=details or {},
+            details=safe_details,
             ip_address=ip_address,
             user_agent=user_agent,
             success=success,
         )
         self._entries.append(entry)
-
-        # In production, also write to persistent storage
-        # self._persist_entry(entry)
 
     def log_sensitive_access(
         self,
@@ -242,6 +244,37 @@ class AuditLogger:
             entries = [e for e in entries if e.timestamp >= since]
 
         return entries[-limit:]
+
+    def get_entries_for_resource(
+        self,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        limit: int = 200,
+    ) -> list[AuditEntry]:
+        """Query audit entries by resource (e.g. tool_call, policy)."""
+        entries = self._entries
+        if resource_type:
+            entries = [e for e in entries if e.resource_type == resource_type]
+        if resource_id:
+            entries = [e for e in entries if e.resource_id == resource_id]
+        return entries[-limit:]
+
+    def export_json(
+        self,
+        user_email: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        limit: int = 500,
+    ) -> list[dict]:
+        """Export audit entries as JSON-serializable list of dicts."""
+        entries = self._entries
+        if user_email:
+            entries = [e for e in entries if e.user_email == user_email]
+        if resource_type:
+            entries = [e for e in entries if e.resource_type == resource_type]
+        if resource_id:
+            entries = [e for e in entries if e.resource_id == resource_id]
+        return [e.to_dict() for e in entries[-limit:]]
 
 
 # ============================================================================

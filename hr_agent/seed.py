@@ -115,6 +115,68 @@ def seed_if_needed() -> None:
         con.execute(
             text(
                 """
+        CREATE TABLE IF NOT EXISTS hr_command_center_request (
+          request_id INTEGER PRIMARY KEY,
+          requester_employee_id INTEGER NOT NULL,
+          requester_email TEXT NOT NULL,
+          thread_id TEXT NOT NULL,
+          source TEXT NOT NULL,
+          source_ref TEXT NULL,
+          source_message_excerpt TEXT NOT NULL,
+          request_type TEXT NOT NULL,
+          request_subtype TEXT NOT NULL,
+          classifier_source TEXT NOT NULL,
+          classifier_confidence REAL NOT NULL,
+          priority TEXT NOT NULL,
+          risk_level TEXT NOT NULL,
+          status TEXT NOT NULL,
+          next_action TEXT NULL,
+          sla_first_response_due_at TEXT NULL,
+          sla_resolution_due_at TEXT NULL,
+          required_fields_json TEXT NOT NULL,
+          collected_fields_json TEXT NOT NULL,
+          missing_fields_json TEXT NOT NULL,
+          ticket_ref TEXT NULL,
+          escalated_at TEXT NULL,
+          escalation_reason TEXT NULL,
+          assigned_to_employee_id INTEGER NULL,
+          last_actor_employee_id INTEGER NULL,
+          notes TEXT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        """
+            )
+        )
+
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_cc_request_status_updated
+          ON hr_command_center_request (status, updated_at);
+        """
+            )
+        )
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_cc_request_priority_risk
+          ON hr_command_center_request (priority, risk_level);
+        """
+            )
+        )
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_cc_request_scope
+          ON hr_command_center_request (requester_email, requester_employee_id, thread_id);
+        """
+            )
+        )
+
+        con.execute(
+            text(
+                """
         CREATE TABLE IF NOT EXISTS compensation (
           employee_id INTEGER PRIMARY KEY,
           currency TEXT NOT NULL,

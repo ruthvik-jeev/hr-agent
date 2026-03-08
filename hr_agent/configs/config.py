@@ -37,6 +37,19 @@ _langfuse_handler = None
 _langfuse_client = None
 
 
+def get_normalized_llm_base_url() -> str:
+    """Return LLM base URL normalized for OpenAI-compatible clients."""
+    base_url = (settings.llm_base_url or "").strip().rstrip("/")
+    if not base_url:
+        return ""
+
+    for suffix in ("/chat/completions", "/completions"):
+        if base_url.endswith(suffix):
+            base_url = base_url[: -len(suffix)]
+            break
+    return base_url
+
+
 def get_langfuse_handler():
     """Create a Langfuse CallbackHandler for LangChain/LangGraph tracing.
 

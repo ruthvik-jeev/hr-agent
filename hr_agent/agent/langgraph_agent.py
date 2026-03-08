@@ -28,9 +28,16 @@ from ..tools.langchain_tools import (
     TOOL_MAP,
 )
 from ..services.base import get_employee_service
-from ..configs.config import settings, get_langfuse_handler
+from ..configs.config import settings, get_langfuse_handler, get_normalized_llm_base_url
 from ..tracing.observability import logger
 from ..policies.policy_engine import get_policy_engine, PolicyContext
+from ..utils.security import (
+    audit_logger,
+    AuditAction,
+    is_sensitive_action,
+    get_sensitive_data_type,
+)
+from ..utils.validation import sanitize_for_logging
 
 
 # ============================================================================
@@ -125,11 +132,12 @@ def get_llm():
     if _cached_llm is not None:
         return _cached_llm
 
-    if settings.llm_base_url:
+    base_url = get_normalized_llm_base_url()
+    if base_url:
         llm = ChatOpenAI(
             model=settings.llm_model,
             api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
+            base_url=base_url,
             temperature=0,
         )
     else:
@@ -189,6 +197,13 @@ def check_authorization(state: AgentState) -> dict:
 
         # Check authorization
         if not policy_engine.is_allowed(ctx):
+            # Log policy denial to audit trail
+            audit_logger.log_policy_denial(
+                user_email=state["user_email"],
+                action=tool_name,
+                target=str(target_id) if target_id else None,
+                reason=f"Policy denied {tool_name} for role {state['user_role']}",
+            )
             # Create a denial message
             denial_msg = ToolMessage(
                 content=json.dumps(
@@ -230,8 +245,27 @@ def tool_node(state: AgentState) -> dict:
             result = {"error": f"Unknown tool: {tool_name}"}
         else:
             try:
+                # Log sensitive data access
+                if is_sensitive_action(tool_name):
+                    data_type = get_sensitive_data_type(tool_name)
+                    audit_logger.log_sensitive_access(
+                        user_email=state.get("user_email", "unknown"),
+                        data_type=data_type.value if data_type else tool_name,
+                        target_employee_id=tool_args.get("employee_id"),
+                        action_name=tool_name,
+                    )
                 # Invoke the tool
                 result = tool_func.invoke(tool_args)
+                # Log the tool call
+                audit_logger.log(
+                    action=AuditAction.VIEW_DATA,
+                    user_email=state.get("user_email", "unknown"),
+                    resource_type="tool_call",
+                    resource_id=tool_name,
+                    details=sanitize_for_logging(
+                        {"tool": tool_name, "args": tool_args}
+                    ),
+                )
             except Exception as e:
                 result = {"error": str(e)}
 
