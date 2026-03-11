@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+!apps/web-ts/src/lib/
+!apps/web-ts/src/lib/**
 parts/
 sdist/
 var/
@@ -169,6 +171,12 @@ hr_demo.db
 # Evaluation results (can contain sensitive info, large files)
 eval_results/
 *.json
+!apps/web-ts/package.json
+!apps/web-ts/package-lock.json
+!apps/web-ts/components.json
+!apps/web-ts/tsconfig.json
+!apps/web-ts/tsconfig.app.json
+!apps/web-ts/tsconfig.node.json
 
 # Logs
 logs/
