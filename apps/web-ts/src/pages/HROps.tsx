@@ -47,6 +47,7 @@ import {
   escalateHRRequest,
   fetchHRRequestDetail,
   fetchHRRequests,
+  fetchSessions,
   messageHRRequestRequester,
   transitionHRRequestStatus,
   type BackendHRRequest,
@@ -221,6 +222,18 @@ export function isDueSoon(
   return dueAt >= nowTs && dueAt <= maxTs;
 }
 
+function toSessionPreview(session: {
+  title?: string | null;
+  turn_count: number;
+  created_at: string;
+}): string {
+  if (session.title && session.title.trim()) return session.title;
+  if (session.turn_count > 0) {
+    return `Conversation ${new Date(session.created_at).toLocaleDateString()}`;
+  }
+  return "New conversation";
+}
+
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -370,6 +383,34 @@ export default function HROps() {
     };
   }, [user?.email]);
 
+  useEffect(() => {
+    if (!user?.email) return;
+    let cancelled = false;
+
+    const loadSessions = async () => {
+      try {
+        const sessions = await fetchSessions(user.email);
+        if (cancelled) return;
+        setConversations(
+          sessions
+            .map((session) => ({
+              id: session.session_id,
+              preview: toSessionPreview(session),
+              timestamp: new Date(session.created_at),
+            }))
+            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        );
+      } catch {
+        // Keep dashboard usable if chat sessions fail to load.
+      }
+    };
+
+    void loadSessions();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
+
   const handleExpand = async (requestId: number) => {
     const isExpanded = expandedId === requestId;
     setExpandedId(isExpanded ? null : requestId);
@@ -447,7 +488,10 @@ export default function HROps() {
       <HRConversationSidebar
         activeConversationId={activeConversation}
         conversations={conversations}
-        onSelectConversation={setActiveConversation}
+        onSelectConversation={(id) => {
+          setActiveConversation(id);
+          navigate("/hr-chat");
+        }}
         onNewConversation={() => navigate("/hr-chat")}
         onDeleteConversation={(id) => {
           setConversations((prev) => prev.filter((c) => c.id !== id));

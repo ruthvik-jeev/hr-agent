@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Trash2, MoreHorizontal, House } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, Plus, Trash2, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -19,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 export interface Conversation {
   id: string;
@@ -53,13 +52,79 @@ export default function ConversationSidebar({
   onClearAll,
 }: ConversationSidebarProps) {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const displayName = user?.email?.split("@")[0] ?? "User";
   const displayEmail = user?.email ?? "";
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("chat-sidebar-collapsed") === "true"
+  );
+
+  const toggleCollapsed = (value: boolean) => {
+    setCollapsed(value);
+    localStorage.setItem("chat-sidebar-collapsed", String(value));
+  };
+
+  if (collapsed) {
+    return (
+      <aside className="relative w-16 border-r bg-card flex flex-col h-screen flex-shrink-0 overflow-visible transition-all duration-200 group/sidebar">
+        <div className="px-3 pt-5 pb-4 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-sm font-bold text-primary-foreground">P</span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => toggleCollapsed(false)}
+          className="absolute -right-3 top-7 z-50 h-6 w-6 rounded-full border bg-card shadow-sm flex items-center justify-center opacity-0 group-hover/sidebar:opacity-100 hover:bg-accent transition-all"
+        >
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+        </button>
+
+        <div className="px-2 pb-3 flex justify-center">
+          <Button variant="outline" size="icon" className="h-10 w-10" onClick={onNewConversation}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-2 space-y-1">
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => onSelectConversation(conv.id)}
+              className={`w-full flex items-center justify-center p-2 rounded-lg transition-colors ${
+                activeConversationId === conv.id
+                  ? "bg-accent text-accent-foreground"
+                  : "hover:bg-muted/60"
+              }`}
+              title={conv.preview}
+            >
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+
+        <div className="border-t px-2 py-3 flex justify-center">
+          <button onClick={signOut} className="w-full flex justify-center py-1">
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity">
+              <span className="text-xs font-semibold text-primary-foreground">
+                {displayName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          </button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
-    <aside className="w-72 border-r bg-card flex flex-col h-screen flex-shrink-0 overflow-hidden">
+    <aside className="relative w-72 border-r bg-card flex flex-col h-screen flex-shrink-0 overflow-visible transition-all duration-200 group/sidebar">
+      <button
+        onClick={() => toggleCollapsed(true)}
+        className="absolute -right-3 top-7 z-50 h-6 w-6 rounded-full border bg-card shadow-sm flex items-center justify-center opacity-0 group-hover/sidebar:opacity-100 hover:bg-accent transition-all"
+      >
+        <ChevronLeft className="h-3 w-3 text-muted-foreground" />
+      </button>
+
       {/* Branding */}
       <div className="px-5 pt-5 pb-4 flex items-center gap-2.5">
         <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -96,19 +161,6 @@ export default function ConversationSidebar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
-      <div className="px-4 pb-3">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-sm font-normal h-9"
-          onClick={() => {
-            onNewConversation();
-            navigate("/chat");
-          }}
-        >
-          <House className="h-4 w-4" />
-          Home
-        </Button>
       </div>
 
       {/* Clear all confirmation dialog */}

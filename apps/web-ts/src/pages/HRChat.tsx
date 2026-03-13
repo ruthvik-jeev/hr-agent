@@ -12,7 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHRTickets } from "@/contexts/HRTicketsContext";
 import type { ResolutionTag } from "@/contexts/HRTicketsContext";
 import { mockEmployees } from "@/data/mockEmployees";
-import { sendChat } from "@/lib/backend";
+import {
+  createSession,
+  deleteSession,
+  fetchSessions,
+  fetchSessionTurns,
+  sendChat,
+  type BackendSessionTurn,
+} from "@/lib/backend";
 import { toast } from "sonner";
 import type { Conversation } from "@/components/ConversationSidebar";
 
@@ -31,6 +38,94 @@ function buildConversationPreview(text: string): string {
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (!cleaned) return NEW_CONVERSATION_LABEL;
   return cleaned.length > 40 ? `${cleaned.slice(0, 40)}...` : cleaned;
+}
+
+function mapTurnsToMessages(turns: BackendSessionTurn[]): Message[] {
+  const mapped: Message[] = [];
+  turns.forEach((turn, idx) => {
+    const turnTs = new Date(turn.timestamp);
+    const timestamp = Number.isNaN(turnTs.getTime()) ? new Date() : turnTs;
+    mapped.push({
+      id: `turn-${idx}-user`,
+      role: "user",
+      content: turn.query,
+      timestamp,
+    });
+    mapped.push({
+      id: `turn-${idx}-assistant`,
+      role: "assistant",
+      content: turn.response,
+      timestamp,
+      confidence: "high",
+    });
+  });
+  return mapped;
+}
+
+function conversationTitlesStorageKey(userEmail: string): string {
+  return `pinghr:hr-conversation-titles:${userEmail.toLowerCase()}`;
+}
+
+function loadConversationTitles(userEmail: string): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(conversationTitlesStorageKey(userEmail));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveConversationTitles(userEmail: string, titles: Record<string, string>): void {
+  try {
+    localStorage.setItem(conversationTitlesStorageKey(userEmail), JSON.stringify(titles));
+  } catch {
+    // Ignore storage failures and keep UI usable.
+  }
+}
+
+function saveConversationTitleIfMissing(
+  userEmail: string,
+  conversationId: string,
+  title: string
+): void {
+  const normalized = title.trim();
+  if (!normalized || normalized === NEW_CONVERSATION_LABEL) return;
+  const titles = loadConversationTitles(userEmail);
+  if (titles[conversationId]) return;
+  titles[conversationId] = normalized;
+  saveConversationTitles(userEmail, titles);
+}
+
+function removeConversationTitle(userEmail: string, conversationId: string): void {
+  const titles = loadConversationTitles(userEmail);
+  if (!(conversationId in titles)) return;
+  delete titles[conversationId];
+  saveConversationTitles(userEmail, titles);
+}
+
+function clearConversationTitles(userEmail: string): void {
+  try {
+    localStorage.removeItem(conversationTitlesStorageKey(userEmail));
+  } catch {
+    // Ignore storage failures and keep UI usable.
+  }
+}
+
+function removeConversationTitles(userEmail: string, conversationIds: string[]): void {
+  if (conversationIds.length === 0) return;
+  const titles = loadConversationTitles(userEmail);
+  let changed = false;
+  for (const id of conversationIds) {
+    if (id in titles) {
+      delete titles[id];
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveConversationTitles(userEmail, titles);
+  }
 }
 
 async function streamChat({
@@ -97,6 +192,7 @@ export default function HRChat() {
   const [conversationMessages, setConversationMessages] = useState<Record<string, Message[]>>({});
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -104,6 +200,7 @@ export default function HRChat() {
   const [processedTickets, setProcessedTickets] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeConversationRef = useRef<string | null>(null);
 
   const displayName = user?.email?.split("@")[0] ?? "HR User";
   const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
@@ -113,6 +210,45 @@ export default function HRChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    activeConversationRef.current = activeConversation;
+  }, [activeConversation]);
+
+  useEffect(() => {
+    if (!user?.email) return;
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        const storedTitles = loadConversationTitles(user.email);
+        const sessions = await fetchSessions(user.email);
+        if (cancelled) return;
+
+        setConversations(
+          sessions
+            .map((session) => ({
+              id: session.session_id,
+              preview:
+                storedTitles[session.session_id] ||
+                session.title ||
+                (session.turn_count > 0
+                  ? `Conversation ${new Date(session.created_at).toLocaleDateString()}`
+                  : NEW_CONVERSATION_LABEL),
+              timestamp: new Date(session.created_at),
+            }))
+            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        );
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to load HR conversations");
+      }
+    };
+
+    void loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
 
   // Handle deep-link from HR Ops with ?ticket=ID
   useEffect(() => {
@@ -133,7 +269,7 @@ export default function HRChat() {
         }, 300);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, processedTickets, getTicketById, setSearchParams]);
 
   // Helper to update messages and sync to conversationMessages
   const updateMessages = useCallback((convId: string | null, updater: (prev: Message[]) => Message[]) => {
@@ -150,16 +286,37 @@ export default function HRChat() {
     const msg = text.trim();
     if (!msg || !user?.email) return;
 
-    const convId = convIdOverride || `conv-${Date.now()}`;
+    let convId = convIdOverride || activeConversation;
+    if (!convId) {
+      try {
+        const sessionInfo = await createSession(user.email);
+        convId = sessionInfo.session_id;
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to create conversation");
+        return;
+      }
+    }
+
     const preview = buildConversationPreview(msg);
+    const displayPreview = convIdOverride ? `📋 ${preview}` : preview;
+    saveConversationTitleIfMissing(user.email, convId, displayPreview);
 
     // Check if conversation already exists
     setConversations((prev) => {
       if (prev.find((c) => c.id === convId)) {
-        return prev.map((c) => (c.id === convId ? { ...c, timestamp: new Date() } : c));
+        return prev.map((c) =>
+          c.id === convId
+            ? {
+                ...c,
+                preview: c.preview === NEW_CONVERSATION_LABEL ? displayPreview : c.preview,
+                timestamp: new Date(),
+              }
+            : c
+        );
       }
-      return [{ id: convId, preview: `📋 ${preview}`, timestamp: new Date() }, ...prev];
+      return [{ id: convId, preview: displayPreview, timestamp: new Date() }, ...prev];
     });
+    setConversationMessages((cm) => ({ ...cm, [convId]: cm[convId] || [] }));
     setActiveConversation(convId);
 
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: msg, timestamp: new Date() };
@@ -216,7 +373,7 @@ export default function HRChat() {
         ]);
       }
     }
-  }, [updateMessages, user?.email]);
+  }, [activeConversation, updateMessages, user?.email]);
 
   const handleSend = useCallback(async (text?: string) => {
     const msg = text || input.trim();
@@ -224,7 +381,13 @@ export default function HRChat() {
 
     let convId = activeConversation;
     if (!convId) {
-      convId = `conv-${Date.now()}`;
+      try {
+        const sessionInfo = await createSession(user.email);
+        convId = sessionInfo.session_id;
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to create conversation");
+        return;
+      }
       setConversations((prev) => [
         { id: convId!, preview: NEW_CONVERSATION_LABEL, timestamp: new Date() },
         ...prev,
@@ -233,6 +396,7 @@ export default function HRChat() {
       setActiveConversation(convId);
     }
     const preview = buildConversationPreview(msg);
+    saveConversationTitleIfMissing(user.email, convId, preview);
     setConversations((prev) =>
       prev.map((c) =>
         c.id === convId
@@ -312,26 +476,65 @@ export default function HRChat() {
       setConversationMessages((cm) => ({ ...cm, [activeConversation]: messages }));
     }
     setActiveConversation(id);
-    setMessages(conversationMessages[id] || []);
+    const existing = conversationMessages[id];
+    if (existing) {
+      setMessages(existing);
+      return;
+    }
+
+    setMessages([]);
+    if (!user?.email) return;
+
+    void (async () => {
+      try {
+        const turns = await fetchSessionTurns(user.email, id);
+        const loaded = mapTurnsToMessages(turns);
+        setConversationMessages((cm) => ({ ...cm, [id]: loaded }));
+        if (activeConversationRef.current === id) {
+          setMessages(loaded);
+        }
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to load conversation history");
+      }
+    })();
   };
 
-  const handleNewConversation = () => {
+  const handleNewConversation = async () => {
+    if (!user?.email || isCreatingConversation) return;
     if (activeConversation && messages.length > 0) {
       setConversationMessages((cm) => ({ ...cm, [activeConversation]: messages }));
     }
-    const newId = `conv-${Date.now()}`;
-    setConversations((prev) => [
-      { id: newId, preview: NEW_CONVERSATION_LABEL, timestamp: new Date() },
-      ...prev,
-    ]);
-    setConversationMessages((cm) => ({ ...cm, [newId]: [] }));
-    setMessages([]);
-    setActiveConversation(newId);
-    setActiveTicketId(null);
-    setInput("");
+
+    setIsCreatingConversation(true);
+    try {
+      const sessionInfo = await createSession(user.email);
+      const newId = sessionInfo.session_id;
+      setConversations((prev) => [
+        { id: newId, preview: NEW_CONVERSATION_LABEL, timestamp: new Date(sessionInfo.created_at) },
+        ...prev.filter((item) => item.id !== newId),
+      ]);
+      setConversationMessages((cm) => ({ ...cm, [newId]: [] }));
+      setMessages([]);
+      setActiveConversation(newId);
+      setActiveTicketId(null);
+      setInput("");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create a new conversation");
+    } finally {
+      setIsCreatingConversation(false);
+    }
   };
 
-  const handleDeleteConversation = (id: string) => {
+  const handleDeleteConversation = async (id: string) => {
+    if (!user?.email) return;
+    try {
+      await deleteSession(user.email, id);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete conversation");
+      return;
+    }
+
+    removeConversationTitle(user.email, id);
     setConversations((prev) => prev.filter((c) => c.id !== id));
     setConversationMessages((cm) => {
       const next = { ...cm };
@@ -345,12 +548,54 @@ export default function HRChat() {
     }
   };
 
-  const handleClearAll = () => {
-    setConversations([]);
-    setConversationMessages({});
-    setMessages([]);
-    setActiveConversation(null);
-    setActiveTicketId(null);
+  const handleClearAll = async () => {
+    if (!user?.email) return;
+    const ids = conversations.map((conversation) => conversation.id);
+    if (ids.length === 0) {
+      clearConversationTitles(user.email);
+      setConversations([]);
+      setConversationMessages({});
+      setMessages([]);
+      setActiveConversation(null);
+      setActiveTicketId(null);
+      return;
+    }
+
+    const results = await Promise.allSettled(ids.map((id) => deleteSession(user.email, id)));
+    const failedIds = results
+      .map((result, idx) => (result.status === "rejected" ? ids[idx] : null))
+      .filter((id): id is string => id !== null);
+    const deletedIds = ids.filter((id) => !failedIds.includes(id));
+
+    if (failedIds.length === 0) {
+      clearConversationTitles(user.email);
+      setConversations([]);
+      setConversationMessages({});
+      setMessages([]);
+      setActiveConversation(null);
+      setActiveTicketId(null);
+      toast.success("All conversations cleared");
+      return;
+    }
+
+    removeConversationTitles(user.email, deletedIds);
+    const failedSet = new Set(failedIds);
+    setConversations((prev) => prev.filter((conversation) => failedSet.has(conversation.id)));
+    setConversationMessages((prev) => {
+      const next: Record<string, Message[]> = {};
+      for (const id of failedIds) {
+        if (prev[id]) next[id] = prev[id];
+      }
+      return next;
+    });
+    if (!activeConversation || !failedSet.has(activeConversation)) {
+      setMessages([]);
+      setActiveConversation(null);
+      setActiveTicketId(null);
+    }
+    toast.error(
+      `${failedIds.length} conversation${failedIds.length === 1 ? "" : "s"} could not be deleted`
+    );
   };
 
   const handleMoveTicketToNext = (note: string, tag: ResolutionTag) => {

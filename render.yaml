@@ -15,9 +15,9 @@ services:
       - key: LLM_BASE_URL
         sync: false
       - key: LLM_MODEL
-        value: gpt-4o-mini
+        value: databricks-qwen3-next-80b-a3b-instruct
       - key: ALLOWED_TEST_USER_EMAILS
-        value: amanda.foster@acme.com,jordan.lee@acme.com
+        value: amanda.foster@acme.com,jordan.lee@acme.com,alex.kim@acme.com
       - key: LANGFUSE_ENABLED
         value: "false"
   - type: web
