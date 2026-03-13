@@ -19,6 +19,12 @@ export interface BackendSessionInfo {
   title?: string | null;
 }
 
+export interface BackendSessionTurn {
+  query: string;
+  response: string;
+  timestamp: string;
+}
+
 export interface BackendEscalation {
   escalation_id: number;
   requester_employee_id: number;
@@ -63,6 +69,66 @@ export interface BackendEscalationDetail {
   completeness_percent: number;
 }
 
+export interface BackendHRRequest {
+  request_id: number;
+  tenant_id: string;
+  requester_user_id: string;
+  requester_role: string;
+  subject_employee_id?: number | null;
+  requester_name?: string | null;
+  requester_department?: string | null;
+  requester_title?: string | null;
+  subject_employee_name?: string | null;
+  type: string;
+  subtype: string;
+  summary: string;
+  description: string;
+  priority: "P0" | "P1" | "P2";
+  risk_level: "HIGH" | "MED" | "LOW";
+  sla_due_at?: string | null;
+  status:
+    | "NEW"
+    | "NEEDS_INFO"
+    | "READY"
+    | "IN_PROGRESS"
+    | "RESOLVED"
+    | "ESCALATED"
+    | "CANCELLED";
+  assignee_user_id?: string | null;
+  assignee_name?: string | null;
+  required_fields: string[];
+  captured_fields: Record<string, unknown>;
+  missing_fields: string[];
+  created_at: string;
+  updated_at: string;
+  last_action_at: string;
+  resolution_text?: string | null;
+  resolution_sources: string[];
+  escalation_ticket_id?: string | null;
+  last_message_to_requester?: string | null;
+  last_message_at?: string | null;
+}
+
+export interface BackendHRRequestTimelineEvent {
+  event_id: number;
+  request_id: number;
+  tenant_id: string;
+  event_type: string;
+  event_note?: string | null;
+  actor_user_id?: string | null;
+  actor_role?: string | null;
+  actor_name?: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface BackendHRRequestDetail {
+  request: BackendHRRequest;
+  timeline: BackendHRRequestTimelineEvent[];
+  missing_fields: string[];
+  completeness_percent: number;
+}
+
 async function apiRequest<T>(
   path: string,
   userEmail: string,
@@ -103,6 +169,13 @@ export async function fetchSessions(userEmail: string): Promise<BackendSessionIn
 
 export async function createSession(userEmail: string): Promise<BackendSessionInfo> {
   return apiRequest<BackendSessionInfo>("/sessions", userEmail, { method: "POST" });
+}
+
+export async function fetchSessionTurns(
+  userEmail: string,
+  sessionId: string
+): Promise<BackendSessionTurn[]> {
+  return apiRequest<BackendSessionTurn[]>(`/sessions/${sessionId}/turns`, userEmail);
 }
 
 export async function deleteSession(
@@ -271,6 +344,216 @@ export async function escalateEscalationCase(
       method: "POST",
       body: JSON.stringify({
         note: note ?? null,
+      }),
+    }
+  );
+}
+
+export async function fetchHRRequests(userEmail: string): Promise<BackendHRRequest[]> {
+  return apiRequest<BackendHRRequest[]>("/hr-requests", userEmail);
+}
+
+export async function fetchHRRequestCounts(
+  userEmail: string
+): Promise<{
+  total: number;
+  new: number;
+  needs_info: number;
+  ready: number;
+  in_progress: number;
+  resolved: number;
+  escalated: number;
+  cancelled: number;
+}> {
+  return apiRequest<{
+    total: number;
+    new: number;
+    needs_info: number;
+    ready: number;
+    in_progress: number;
+    resolved: number;
+    escalated: number;
+    cancelled: number;
+  }>("/hr-requests/counts", userEmail);
+}
+
+export async function createHRRequest(
+  userEmail: string,
+  payload: {
+    tenant_id?: string;
+    subject_employee_id?: number | null;
+    type: string;
+    subtype: string;
+    summary: string;
+    description: string;
+    priority?: "P0" | "P1" | "P2";
+    risk_level?: "HIGH" | "MED" | "LOW";
+    sla_due_at?: string | null;
+    required_fields?: string[];
+    captured_fields?: Record<string, unknown>;
+  }
+): Promise<{ success: boolean; request_id?: number; error?: string | null }> {
+  return apiRequest<{ success: boolean; request_id?: number; error?: string | null }>(
+    "/hr-requests",
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        tenant_id: payload.tenant_id ?? "default",
+        subject_employee_id: payload.subject_employee_id ?? null,
+        type: payload.type,
+        subtype: payload.subtype,
+        summary: payload.summary,
+        description: payload.description,
+        priority: payload.priority ?? "P2",
+        risk_level: payload.risk_level ?? "LOW",
+        sla_due_at: payload.sla_due_at ?? null,
+        required_fields: payload.required_fields ?? [],
+        captured_fields: payload.captured_fields ?? {},
+      }),
+    }
+  );
+}
+
+export async function fetchHRRequestDetail(
+  userEmail: string,
+  requestId: number
+): Promise<BackendHRRequestDetail> {
+  return apiRequest<BackendHRRequestDetail>(
+    `/hr-requests/${requestId}/detail`,
+    userEmail
+  );
+}
+
+export async function assignHRRequest(
+  userEmail: string,
+  requestId: number,
+  assigneeUserId?: string | null
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/assign`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        assignee_user_id: assigneeUserId ?? null,
+      }),
+    }
+  );
+}
+
+export async function changeHRRequestPriority(
+  userEmail: string,
+  requestId: number,
+  priority: "P0" | "P1" | "P2"
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/priority`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        priority,
+      }),
+    }
+  );
+}
+
+export async function transitionHRRequestStatus(
+  userEmail: string,
+  requestId: number,
+  nextStatus:
+    | "NEW"
+    | "NEEDS_INFO"
+    | "READY"
+    | "IN_PROGRESS"
+    | "RESOLVED"
+    | "ESCALATED"
+    | "CANCELLED",
+  resolutionText?: string,
+  resolutionSources?: string[],
+  escalationTicketId?: string
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/status`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        new_status: nextStatus,
+        resolution_text: resolutionText ?? null,
+        resolution_sources: resolutionSources ?? [],
+        escalation_ticket_id: escalationTicketId ?? null,
+      }),
+    }
+  );
+}
+
+export async function messageHRRequestRequester(
+  userEmail: string,
+  requestId: number,
+  message: string
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/message-requester`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+      }),
+    }
+  );
+}
+
+export async function replyToHRRequestAsRequester(
+  userEmail: string,
+  requestId: number,
+  message: string
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/requester-reply`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+      }),
+    }
+  );
+}
+
+export async function captureHRRequestFields(
+  userEmail: string,
+  requestId: number,
+  capturedFields: Record<string, unknown>
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/capture-fields`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        captured_fields: capturedFields,
+      }),
+    }
+  );
+}
+
+export async function escalateHRRequest(
+  userEmail: string,
+  requestId: number,
+  note?: string,
+  escalationTicketId?: string
+): Promise<{ success: boolean; error?: string | null }> {
+  return apiRequest<{ success: boolean; error?: string | null }>(
+    `/hr-requests/${requestId}/escalate`,
+    userEmail,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        note: note ?? null,
+        escalation_ticket_id: escalationTicketId ?? null,
       }),
     }
   );

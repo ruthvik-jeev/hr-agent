@@ -10,14 +10,16 @@ import ChatMessageBubble from "@/components/ChatMessageBubble";
 import CategoryCards from "@/components/CategoryCards";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  createEscalation,
+  createHRRequest,
   deleteSession,
   createSession,
-  fetchEscalations,
+  fetchHRRequests,
+  fetchSessionTurns,
   fetchSessions,
-  replyToEscalationAsRequester,
+  replyToHRRequestAsRequester,
   sendChat,
-  type BackendEscalation,
+  type BackendHRRequest,
+  type BackendSessionTurn,
 } from "@/lib/backend";
 
 interface Message {
@@ -27,6 +29,28 @@ interface Message {
   timestamp: Date;
   confidence?: "high" | "low";
   escalated?: boolean;
+}
+
+function mapTurnsToMessages(turns: BackendSessionTurn[]): Message[] {
+  const mapped: Message[] = [];
+  turns.forEach((turn, idx) => {
+    const ts = new Date(turn.timestamp);
+    const turnTime = Number.isNaN(ts.getTime()) ? new Date() : ts;
+    mapped.push({
+      id: `turn-${idx}-user`,
+      role: "user",
+      content: turn.query,
+      timestamp: turnTime,
+    });
+    mapped.push({
+      id: `turn-${idx}-assistant`,
+      role: "assistant",
+      content: turn.response,
+      timestamp: turnTime,
+      confidence: "high",
+    });
+  });
+  return mapped;
 }
 
 const NEW_CONVERSATION_LABEL = "New conversation";
@@ -132,14 +156,17 @@ function detectCategory(text: string): string {
 }
 
 function toRequestStatus(
-  status: BackendEscalation["status"]
-): "pending" | "in_review" | "resolved" {
-  if (status === "IN_REVIEW") return "in_review";
-  if (status === "RESOLVED") return "resolved";
+  status: BackendHRRequest["status"],
+  assigneeUserId?: string | null
+): "pending" | "assigned" | "in_progress" | "in_review" | "resolved" {
+  if (status === "RESOLVED" || status === "CANCELLED") return "resolved";
+  if (status === "NEEDS_INFO") return "in_review";
+  if (status === "IN_PROGRESS" || status === "ESCALATED") return "in_progress";
+  if (assigneeUserId) return "assigned";
   return "pending";
 }
 
-function mapEscalationToRequest(item: BackendEscalation): EscalatedRequest {
+function mapHRRequestToPanelRequest(item: BackendHRRequest): EscalatedRequest {
   const createdAt = new Date(item.created_at);
   const updatedAt = new Date(item.updated_at);
   const lastMessageAt = item.last_message_at ? new Date(item.last_message_at) : null;
@@ -148,17 +175,15 @@ function mapEscalationToRequest(item: BackendEscalation): EscalatedRequest {
     item.last_message_to_requester.trim().length > 0;
   const latestUpdate =
     item.last_message_to_requester ||
-    item.resolution_note ||
-    item.agent_suggestion ||
-    "Escalated from conversation for HR follow-up.";
-  const apiPriority = item.priority?.toLowerCase();
-  const mappedPriority =
-    apiPriority === "critical" || apiPriority === "high" || apiPriority === "medium"
-      ? apiPriority
-      : "high";
+    item.resolution_text ||
+    (typeof item.captured_fields?.agent_suggestion === "string"
+      ? item.captured_fields.agent_suggestion
+      : null) ||
+    "Your request has been logged for HR follow-up.";
+  const mappedPriority = item.priority === "P0" ? "critical" : item.priority === "P1" ? "high" : "medium";
 
   const auditLog: { label: string; timestamp: Date }[] = [
-    { label: "Escalated to HR by employee", timestamp: createdAt },
+    { label: "Request created", timestamp: createdAt },
   ];
   if (hasHrMessage && lastMessageAt && !Number.isNaN(lastMessageAt.getTime())) {
     auditLog.push({
@@ -167,21 +192,18 @@ function mapEscalationToRequest(item: BackendEscalation): EscalatedRequest {
     });
   }
   auditLog.push({
-    label: item.status === "RESOLVED" ? "Marked resolved by HR" : "Last status update",
+    label: item.status === "RESOLVED" ? "Marked resolved by HR" : "Latest status update",
     timestamp: updatedAt,
   });
 
   return {
-    id: String(item.escalation_id),
-    summary:
-      item.source_message_excerpt.length > 60
-        ? `${item.source_message_excerpt.slice(0, 60)}...`
-        : item.source_message_excerpt,
-    fullSummary: item.source_message_excerpt,
+    id: String(item.request_id),
+    summary: item.summary.length > 60 ? `${item.summary.slice(0, 60)}...` : item.summary,
+    fullSummary: item.description,
     aiResponse: latestUpdate,
-    status: toRequestStatus(item.status),
+    status: toRequestStatus(item.status, item.assignee_user_id),
     priority: mappedPriority,
-    category: item.category || detectCategory(item.source_message_excerpt),
+    category: `${item.type} / ${item.subtype}`,
     timestamp: createdAt,
     auditLog,
   };
@@ -202,16 +224,17 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeConversationRef = useRef<string | null>(null);
 
   const displayName = user?.email?.split("@")[0] ?? "there";
   const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
 
   const loadEscalatedRequests = useCallback(async () => {
     if (!user?.email) return;
-    const escalations = await fetchEscalations(user.email);
+    const requests = await fetchHRRequests(user.email);
     setEscalatedRequests(
-      escalations
-        .map(mapEscalationToRequest)
+      requests
+        .map(mapHRRequestToPanelRequest)
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     );
   }, [user?.email]);
@@ -219,6 +242,10 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    activeConversationRef.current = activeConversation;
+  }, [activeConversation]);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -259,10 +286,11 @@ export default function ChatPage() {
   }, [user?.email, loadEscalatedRequests]);
 
   useEffect(() => {
-    if (!user?.email) return;
+    if (!user?.email || !requestsOpen) return;
     let stopped = false;
 
     const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
       try {
         await loadEscalatedRequests();
       } catch {
@@ -273,13 +301,13 @@ export default function ChatPage() {
     void refresh();
     const interval = window.setInterval(() => {
       if (!stopped) void refresh();
-    }, 15000);
+    }, 20000);
 
     return () => {
       stopped = true;
       window.clearInterval(interval);
     };
-  }, [user?.email, loadEscalatedRequests]);
+  }, [user?.email, loadEscalatedRequests, requestsOpen]);
 
   if (!session || !user) {
     return <Navigate to="/auth" replace />;
@@ -372,8 +400,29 @@ export default function ChatPage() {
         [activeConversation]: messages,
       }));
     }
+
+    const existing = conversationMessages[id];
     setActiveConversation(id);
-    setMessages(conversationMessages[id] || []);
+    if (existing) {
+      setMessages(existing);
+      return;
+    }
+
+    setMessages([]);
+    if (!user?.email) return;
+
+    void (async () => {
+      try {
+        const turns = await fetchSessionTurns(user.email, id);
+        const loaded = mapTurnsToMessages(turns);
+        setConversationMessages((prev) => ({ ...prev, [id]: loaded }));
+        if (activeConversationRef.current === id) {
+          setMessages(loaded);
+        }
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to load conversation history");
+      }
+    })();
   };
 
   const handleNewConversation = async () => {
@@ -498,22 +547,39 @@ export default function ChatPage() {
 
     try {
       const threadId = activeConversation || `manual-${Date.now()}`;
-      const result = await createEscalation(
-        user.email,
-        threadId,
-        queryText.slice(0, 1000),
-        {
-          priority: "HIGH",
-          category: detectCategory(queryText),
-          agentSuggestion: msg.content.slice(0, 3500),
-        }
-      );
+      const detectedCategory = detectCategory(queryText);
+      const normalizedSubtype =
+        detectedCategory
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "") || "GENERAL";
+      const result = await createHRRequest(user.email, {
+        type: "ESCALATION",
+        subtype: normalizedSubtype,
+        summary: queryText.slice(0, 500),
+        description: queryText.slice(0, 5000),
+        priority: "P1",
+        risk_level: "MED",
+        required_fields: [
+          "summary",
+          "description",
+          "requester_user_id",
+          "type",
+          "subtype",
+          "agent_suggestion",
+        ],
+        captured_fields: {
+          thread_id: threadId,
+          category: detectedCategory,
+          agent_suggestion: msg.content.slice(0, 3500),
+        },
+      });
       if (!result.success) {
-        throw new Error(result.error || "Escalation failed");
+        throw new Error(result.error || "Request creation failed");
       }
 
       await loadEscalatedRequests();
-      toast.success(`Escalated to HR Ops (#${result.escalation_id ?? "new"})`);
+      toast.success(`Escalated to HR Ops (#${result.request_id ?? "new"})`);
     } catch (error: any) {
       toast.error(error?.message || "Failed to escalate");
     }
@@ -521,14 +587,14 @@ export default function ChatPage() {
 
   const handleRequesterReply = async (requestId: string, message: string) => {
     if (!user?.email) return;
-    const escalationId = Number(requestId);
-    if (!Number.isFinite(escalationId)) {
-      toast.error("Invalid escalation id");
+    const parsedRequestId = Number(requestId);
+    if (!Number.isFinite(parsedRequestId)) {
+      toast.error("Invalid request id");
       return;
     }
 
     try {
-      await replyToEscalationAsRequester(user.email, escalationId, message);
+      await replyToHRRequestAsRequester(user.email, parsedRequestId, message);
       await loadEscalatedRequests();
       toast.success("Reply sent to HR");
     } catch (error: any) {

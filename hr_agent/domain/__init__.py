@@ -9,6 +9,9 @@ from .models import (
     UserRole,
     HolidayRequestStatus,
     EscalationStatus,
+    HRRequestStatus,
+    HRRequestPriority,
+    HRRequestRiskLevel,
     PolicyEffect,
     # Domain Models
     Employee,
@@ -20,6 +23,8 @@ from .models import (
     CompanyHoliday,
     Announcement,
     TeamOverview,
+    HRRequest,
+    HRRequestEvent,
     # API Schemas
     UserContext,
     AgentAction,
@@ -38,6 +43,9 @@ __all__ = [
     "UserRole",
     "HolidayRequestStatus",
     "EscalationStatus",
+    "HRRequestStatus",
+    "HRRequestPriority",
+    "HRRequestRiskLevel",
     "PolicyEffect",
     # Domain Models
     "Employee",
@@ -49,6 +57,8 @@ __all__ = [
     "CompanyHoliday",
     "Announcement",
     "TeamOverview",
+    "HRRequest",
+    "HRRequestEvent",
     # API Schemas
     "UserContext",
     "AgentAction",

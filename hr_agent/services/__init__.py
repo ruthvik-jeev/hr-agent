@@ -12,11 +12,13 @@ from .base import (
     CompensationService,
     CompanyService,
     EscalationService,
+    HRRequestService,
     get_employee_service,
     get_holiday_service,
     get_compensation_service,
     get_company_service,
     get_escalation_service,
+    get_hr_request_service,
 )
 
 # LangChain tools
@@ -27,9 +29,11 @@ __all__ = [
     "CompensationService",
     "CompanyService",
     "EscalationService",
+    "HRRequestService",
     "get_employee_service",
     "get_holiday_service",
     "get_compensation_service",
     "get_company_service",
     "get_escalation_service",
+    "get_hr_request_service",
 ]

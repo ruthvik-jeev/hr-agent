@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -26,7 +26,7 @@ from hr_agent.utils.security import rate_limiter, audit_logger, AuditAction
 from hr_agent.tracing.observability import logger, metrics
 from hr_agent.utils.errors import HRAgentError, RateLimitError
 from hr_agent.repositories.employee import EmployeeRepository
-from hr_agent.services import get_escalation_service
+from hr_agent.services import get_escalation_service, get_hr_request_service
 
 
 # ============================================================================
@@ -60,6 +60,14 @@ class SessionInfo(BaseModel):
     turn_count: int
     has_pending_confirmation: bool
     title: Optional[str] = None
+
+
+class SessionTurnRecord(BaseModel):
+    """Session turn history record."""
+
+    query: str
+    response: str
+    timestamp: str
 
 
 class UserContext(BaseModel):
@@ -191,6 +199,155 @@ class EscalationActionResult(BaseModel):
 
     success: bool
     escalation_id: Optional[int] = None
+    error: Optional[str] = None
+
+
+class HRRequestCreateRequest(BaseModel):
+    """Request body for creating canonical HR requests."""
+
+    tenant_id: str = Field(default="default", min_length=1, max_length=120)
+    subject_employee_id: Optional[int] = None
+    type: str = Field(..., min_length=1, max_length=64)
+    subtype: str = Field(..., min_length=1, max_length=128)
+    summary: str = Field(..., min_length=1, max_length=500)
+    description: str = Field(..., min_length=1, max_length=5000)
+    priority: str = Field(default="P2", min_length=2, max_length=2)
+    risk_level: str = Field(default="LOW", min_length=3, max_length=4)
+    sla_due_at: Optional[str] = Field(default=None, max_length=64)
+    required_fields: list[str] = Field(default_factory=list)
+    captured_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class HRRequestAssignRequest(BaseModel):
+    """Assign or unassign HR request."""
+
+    assignee_user_id: Optional[str] = Field(default=None, max_length=255)
+
+
+class HRRequestPriorityRequest(BaseModel):
+    """Update HR request priority."""
+
+    priority: str = Field(..., min_length=2, max_length=2)
+
+
+class HRRequestStatusRequest(BaseModel):
+    """Transition HR request status."""
+
+    new_status: str = Field(..., min_length=3, max_length=32)
+    resolution_text: Optional[str] = Field(default=None, max_length=4000)
+    resolution_sources: list[str] = Field(default_factory=list)
+    escalation_ticket_id: Optional[str] = Field(default=None, max_length=255)
+
+
+class HRRequestMessageRequest(BaseModel):
+    """Message requester for additional information."""
+
+    message: str = Field(..., min_length=1, max_length=4000)
+
+
+class HRRequestRequesterReplyRequest(BaseModel):
+    """Requester reply on an active HR request."""
+
+    message: str = Field(..., min_length=1, max_length=4000)
+
+
+class HRRequestCaptureFieldsRequest(BaseModel):
+    """Update captured fields and recompute missing fields."""
+
+    captured_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class HRRequestEscalateRequest(BaseModel):
+    """Escalate HR request severity/ticketing."""
+
+    note: Optional[str] = Field(default=None, max_length=4000)
+    escalation_ticket_id: Optional[str] = Field(default=None, max_length=255)
+
+
+class HRRequestRecord(BaseModel):
+    """Canonical HR request payload."""
+
+    request_id: int
+    tenant_id: str
+
+    requester_user_id: str
+    requester_role: str
+    subject_employee_id: Optional[int] = None
+
+    requester_name: Optional[str] = None
+    requester_department: Optional[str] = None
+    requester_title: Optional[str] = None
+    subject_employee_name: Optional[str] = None
+
+    type: str
+    subtype: str
+    summary: str
+    description: str
+
+    priority: str
+    risk_level: str
+    sla_due_at: Optional[str] = None
+
+    status: str
+    assignee_user_id: Optional[str] = None
+    assignee_name: Optional[str] = None
+    required_fields: list[str] = Field(default_factory=list)
+    captured_fields: dict[str, Any] = Field(default_factory=dict)
+    missing_fields: list[str] = Field(default_factory=list)
+
+    created_at: str
+    updated_at: str
+    last_action_at: str
+
+    resolution_text: Optional[str] = None
+    resolution_sources: list[str] = Field(default_factory=list)
+    escalation_ticket_id: Optional[str] = None
+    last_message_to_requester: Optional[str] = None
+    last_message_at: Optional[str] = None
+
+
+class HRRequestEventRecord(BaseModel):
+    """Append-only HR request event payload."""
+
+    event_id: int
+    request_id: int
+    tenant_id: str
+    event_type: str
+    event_note: Optional[str] = None
+    actor_user_id: Optional[str] = None
+    actor_role: Optional[str] = None
+    actor_name: Optional[str] = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+
+
+class HRRequestDetailResponse(BaseModel):
+    """HR request detail used by dashboard."""
+
+    request: HRRequestRecord
+    timeline: list[HRRequestEventRecord]
+    missing_fields: list[str]
+    completeness_percent: int
+
+
+class HRRequestCounts(BaseModel):
+    """Aggregate HR request counts."""
+
+    total: int
+    new: int
+    needs_info: int
+    ready: int
+    in_progress: int
+    resolved: int
+    escalated: int
+    cancelled: int
+
+
+class HRRequestActionResult(BaseModel):
+    """Generic HR request action response."""
+
+    success: bool
+    request_id: Optional[int] = None
     error: Optional[str] = None
 
 
@@ -346,6 +503,16 @@ def _get_status_code(exc: HRAgentError) -> int:
 
 def _raise_escalation_http_error(message: str, default_status: int = 400) -> None:
     """Map escalation service errors to HTTP errors."""
+    lowered = message.lower()
+    if "only hr/manager" in lowered or "only requester" in lowered:
+        raise HTTPException(status_code=403, detail=message)
+    if "not found" in lowered:
+        raise HTTPException(status_code=404, detail=message)
+    raise HTTPException(status_code=default_status, detail=message)
+
+
+def _raise_hr_request_http_error(message: str, default_status: int = 400) -> None:
+    """Map HR request service errors to HTTP errors."""
     lowered = message.lower()
     if "only hr/manager" in lowered or "only requester" in lowered:
         raise HTTPException(status_code=403, detail=message)
@@ -540,6 +707,32 @@ async def get_session_info(session_id: str, user: dict = Depends(get_current_use
         has_pending_confirmation=session["pending_confirmation"] is not None,
         title=build_session_title(session),
     )
+
+
+@app.get(
+    "/sessions/{session_id}/turns",
+    response_model=list[SessionTurnRecord],
+    tags=["Sessions"],
+)
+async def get_session_turns(session_id: str, user: dict = Depends(get_current_user)):
+    """Get turn history for a conversation session."""
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = _sessions[session_id]
+    if session["user_email"] != user["user_email"]:
+        raise HTTPException(status_code=403, detail="Access denied to this session")
+
+    turns: list[SessionTurnRecord] = []
+    for turn in session.get("turns", []):
+        turns.append(
+            SessionTurnRecord(
+                query=str(turn.get("query", "")),
+                response=str(turn.get("response", "")),
+                timestamp=str(turn.get("timestamp", datetime.now().isoformat())),
+            )
+        )
+    return turns
 
 
 @app.delete("/sessions/{session_id}", tags=["Sessions"])
@@ -790,6 +983,256 @@ async def escalate_escalation_request(
         message = result.get("error", "Failed to escalate request.")
         _raise_escalation_http_error(message)
     return EscalationActionResult(**result)
+
+
+# ============================================================================
+# HR REQUEST ENDPOINTS (Canonical Request Entity)
+# ============================================================================
+
+
+@app.get("/hr-requests", response_model=list[HRRequestRecord], tags=["HR Requests"])
+async def list_hr_requests(
+    status: Optional[str] = None,
+    limit: int = 100,
+    user: dict = Depends(get_current_user),
+):
+    """List HR requests visible to the current user."""
+    hr_request_service = get_hr_request_service()
+    rows = hr_request_service.list_requests(
+        viewer_email=user["user_email"],
+        status=status.upper() if status else None,
+        limit=limit,
+    )
+    return [HRRequestRecord(**row) for row in rows]
+
+
+@app.get("/hr-requests/counts", response_model=HRRequestCounts, tags=["HR Requests"])
+async def list_hr_request_counts(user: dict = Depends(get_current_user)):
+    """List aggregate HR request counts visible to current user."""
+    hr_request_service = get_hr_request_service()
+    counts = hr_request_service.list_counts(user["user_email"])
+    return HRRequestCounts(**counts)
+
+
+@app.get(
+    "/hr-requests/{request_id}/detail",
+    response_model=HRRequestDetailResponse,
+    tags=["HR Requests"],
+)
+async def get_hr_request_detail(request_id: int, user: dict = Depends(get_current_user)):
+    """Get full detail for one canonical HR request."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.get_request_detail(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to load HR request detail.")
+        _raise_hr_request_http_error(message, default_status=404)
+    return HRRequestDetailResponse(
+        request=HRRequestRecord(**result["request"]),
+        timeline=[HRRequestEventRecord(**event) for event in result["timeline"]],
+        missing_fields=result["missing_fields"],
+        completeness_percent=result["completeness_percent"],
+    )
+
+
+@app.post(
+    "/hr-requests",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def create_hr_request(
+    request: HRRequestCreateRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Create canonical HR request entity for incoming item."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.create_request(
+        requester_user_id=user["user_email"],
+        requester_role=user["role"],
+        request_type=request.type.strip(),
+        request_subtype=request.subtype.strip(),
+        summary=request.summary,
+        description=request.description,
+        tenant_id=request.tenant_id.strip() or "default",
+        subject_employee_id=request.subject_employee_id,
+        priority=request.priority.upper(),
+        risk_level=request.risk_level.upper(),
+        sla_due_at=request.sla_due_at,
+        required_fields=request.required_fields,
+        captured_fields=request.captured_fields,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to create HR request.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
+
+
+@app.post(
+    "/hr-requests/{request_id}/assign",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def assign_hr_request(
+    request_id: int,
+    request: HRRequestAssignRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Assign or unassign an HR request."""
+    hr_request_service = get_hr_request_service()
+    assignee = request.assignee_user_id.strip().lower() if request.assignee_user_id else None
+    result = hr_request_service.assign_request(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        assignee_user_id=assignee,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to assign HR request.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
+
+
+@app.post(
+    "/hr-requests/{request_id}/priority",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def update_hr_request_priority(
+    request_id: int,
+    request: HRRequestPriorityRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Update HR request priority."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.update_priority(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        priority=request.priority.upper(),
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to update priority.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
+
+
+@app.post(
+    "/hr-requests/{request_id}/status",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def transition_hr_request_status(
+    request_id: int,
+    request: HRRequestStatusRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Transition HR request status."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.transition_status(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        new_status=request.new_status.upper(),
+        resolution_text=request.resolution_text,
+        resolution_sources=request.resolution_sources or None,
+        escalation_ticket_id=request.escalation_ticket_id,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to transition request status.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
+
+
+@app.post(
+    "/hr-requests/{request_id}/message-requester",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def message_hr_request_requester(
+    request_id: int,
+    request: HRRequestMessageRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Message requester for missing clarification."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.message_requester(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        message=request.message,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to message requester.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
+
+
+@app.post(
+    "/hr-requests/{request_id}/requester-reply",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def reply_on_hr_request(
+    request_id: int,
+    request: HRRequestRequesterReplyRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Record requester reply for an active HR request."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.reply_as_requester(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        message=request.message,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to record requester reply.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
+
+
+@app.post(
+    "/hr-requests/{request_id}/capture-fields",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def capture_hr_request_fields(
+    request_id: int,
+    request: HRRequestCaptureFieldsRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Update captured fields for multi-step request completion."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.capture_fields(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        captured_fields=request.captured_fields,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to capture fields.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(success=True, request_id=request_id)
+
+
+@app.post(
+    "/hr-requests/{request_id}/escalate",
+    response_model=HRRequestActionResult,
+    tags=["HR Requests"],
+)
+async def escalate_hr_request(
+    request_id: int,
+    request: HRRequestEscalateRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Escalate canonical HR request."""
+    hr_request_service = get_hr_request_service()
+    result = hr_request_service.escalate_request(
+        viewer_email=user["user_email"],
+        request_id=request_id,
+        escalation_ticket_id=request.escalation_ticket_id,
+        note=request.note,
+    )
+    if not result.get("success"):
+        message = result.get("error", "Failed to escalate request.")
+        _raise_hr_request_http_error(message)
+    return HRRequestActionResult(**result)
 
 
 # ============================================================================
