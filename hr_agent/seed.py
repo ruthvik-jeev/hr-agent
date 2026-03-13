@@ -183,6 +183,91 @@ def seed_if_needed() -> None:
         con.execute(
             text(
                 """
+        CREATE TABLE IF NOT EXISTS hr_request (
+          request_id INTEGER PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          requester_user_id TEXT NOT NULL,
+          requester_role TEXT NOT NULL,
+          subject_employee_id INTEGER NULL,
+          type TEXT NOT NULL,
+          subtype TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          description TEXT NOT NULL,
+          priority TEXT NOT NULL,
+          risk_level TEXT NOT NULL,
+          sla_due_at TEXT NULL,
+          status TEXT NOT NULL,
+          assignee_user_id TEXT NULL,
+          required_fields_json TEXT NOT NULL,
+          captured_fields_json TEXT NOT NULL,
+          missing_fields_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          last_action_at TEXT NOT NULL,
+          resolution_text TEXT NULL,
+          resolution_sources_json TEXT NULL,
+          escalation_ticket_id TEXT NULL,
+          last_message_to_requester TEXT NULL,
+          last_message_at TEXT NULL
+        );
+        """
+            )
+        )
+
+        con.execute(
+            text(
+                """
+        CREATE TABLE IF NOT EXISTS hr_request_event (
+          event_id INTEGER PRIMARY KEY,
+          request_id INTEGER NOT NULL,
+          tenant_id TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          event_note TEXT NULL,
+          actor_user_id TEXT NULL,
+          actor_role TEXT NULL,
+          payload_json TEXT NULL,
+          created_at TEXT NOT NULL
+        );
+        """
+            )
+        )
+
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_hr_request_status_priority_updated
+          ON hr_request(status, priority, updated_at);
+        """
+            )
+        )
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_hr_request_assignee_updated
+          ON hr_request(assignee_user_id, updated_at);
+        """
+            )
+        )
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_hr_request_requester_updated
+          ON hr_request(requester_user_id, updated_at);
+        """
+            )
+        )
+        con.execute(
+            text(
+                """
+        CREATE INDEX IF NOT EXISTS idx_hr_request_event_parent_created
+          ON hr_request_event(request_id, created_at);
+        """
+            )
+        )
+
+        con.execute(
+            text(
+                """
         CREATE TABLE IF NOT EXISTS compensation (
           employee_id INTEGER PRIMARY KEY,
           currency TEXT NOT NULL,
@@ -317,6 +402,57 @@ def seed_if_needed() -> None:
             "escalation_level",
             "escalation_level INTEGER NOT NULL DEFAULT 1",
         )
+        _ensure_sqlite_column(con, "hr_request", "tenant_id", "tenant_id TEXT NOT NULL DEFAULT 'default'")
+        _ensure_sqlite_column(
+            con, "hr_request", "requester_user_id", "requester_user_id TEXT NOT NULL DEFAULT ''"
+        )
+        _ensure_sqlite_column(
+            con, "hr_request", "requester_role", "requester_role TEXT NOT NULL DEFAULT 'EMPLOYEE'"
+        )
+        _ensure_sqlite_column(
+            con, "hr_request", "subject_employee_id", "subject_employee_id INTEGER NULL"
+        )
+        _ensure_sqlite_column(con, "hr_request", "type", "type TEXT NOT NULL DEFAULT 'GENERAL'")
+        _ensure_sqlite_column(
+            con, "hr_request", "subtype", "subtype TEXT NOT NULL DEFAULT 'GENERAL'"
+        )
+        _ensure_sqlite_column(con, "hr_request", "summary", "summary TEXT NOT NULL DEFAULT ''")
+        _ensure_sqlite_column(con, "hr_request", "description", "description TEXT NOT NULL DEFAULT ''")
+        _ensure_sqlite_column(con, "hr_request", "priority", "priority TEXT NOT NULL DEFAULT 'P2'")
+        _ensure_sqlite_column(
+            con, "hr_request", "risk_level", "risk_level TEXT NOT NULL DEFAULT 'LOW'"
+        )
+        _ensure_sqlite_column(con, "hr_request", "sla_due_at", "sla_due_at TEXT NULL")
+        _ensure_sqlite_column(con, "hr_request", "status", "status TEXT NOT NULL DEFAULT 'NEW'")
+        _ensure_sqlite_column(con, "hr_request", "assignee_user_id", "assignee_user_id TEXT NULL")
+        _ensure_sqlite_column(
+            con, "hr_request", "required_fields_json", "required_fields_json TEXT NOT NULL DEFAULT '[]'"
+        )
+        _ensure_sqlite_column(
+            con,
+            "hr_request",
+            "captured_fields_json",
+            "captured_fields_json TEXT NOT NULL DEFAULT '{}'",
+        )
+        _ensure_sqlite_column(
+            con, "hr_request", "missing_fields_json", "missing_fields_json TEXT NOT NULL DEFAULT '[]'"
+        )
+        _ensure_sqlite_column(con, "hr_request", "created_at", "created_at TEXT NOT NULL DEFAULT ''")
+        _ensure_sqlite_column(con, "hr_request", "updated_at", "updated_at TEXT NOT NULL DEFAULT ''")
+        _ensure_sqlite_column(
+            con, "hr_request", "last_action_at", "last_action_at TEXT NOT NULL DEFAULT ''"
+        )
+        _ensure_sqlite_column(con, "hr_request", "resolution_text", "resolution_text TEXT NULL")
+        _ensure_sqlite_column(
+            con, "hr_request", "resolution_sources_json", "resolution_sources_json TEXT NULL"
+        )
+        _ensure_sqlite_column(
+            con, "hr_request", "escalation_ticket_id", "escalation_ticket_id TEXT NULL"
+        )
+        _ensure_sqlite_column(
+            con, "hr_request", "last_message_to_requester", "last_message_to_requester TEXT NULL"
+        )
+        _ensure_sqlite_column(con, "hr_request", "last_message_at", "last_message_at TEXT NULL")
 
         existing = (
             con.execute(text("SELECT COUNT(*) AS c FROM employee;"))

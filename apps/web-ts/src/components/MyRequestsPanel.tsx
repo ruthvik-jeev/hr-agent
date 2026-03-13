@@ -78,6 +78,10 @@ interface MyRequestsPanelProps {
   onReplyToRequest?: (requestId: string, message: string) => Promise<void> | void;
 }
 
+function isActiveStatus(status: RequestStatus): boolean {
+  return status === "in_progress" || status === "assigned";
+}
+
 export default function MyRequestsPanel({
   isOpen,
   onClose,
@@ -105,13 +109,16 @@ export default function MyRequestsPanel({
   };
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
-  const inProgressCount = requests.filter((r) => r.status === "in_progress").length;
+  const inProgressCount = requests.filter((r) => isActiveStatus(r.status)).length;
   const inReviewCount = requests.filter((r) => r.status === "in_review").length;
   const resolvedCount = requests.filter((r) => r.status === "resolved").length;
 
-  const filtered = activeTab === "all"
-    ? requests
-    : requests.filter((r) => r.status === activeTab);
+  const filtered =
+    activeTab === "all"
+      ? requests
+      : requests.filter((r) =>
+          activeTab === "in_progress" ? isActiveStatus(r.status) : r.status === activeTab
+        );
 
   const handleReply = async (requestId: string) => {
     if (!onReplyToRequest || canWorkOnRequests) return;

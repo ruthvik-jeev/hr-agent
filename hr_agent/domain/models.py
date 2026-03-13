@@ -43,6 +43,34 @@ class EscalationStatus(str, Enum):
     RESOLVED = "RESOLVED"
 
 
+class HRRequestStatus(str, Enum):
+    """Unified status for HR operational requests."""
+
+    NEW = "NEW"
+    NEEDS_INFO = "NEEDS_INFO"
+    READY = "READY"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    ESCALATED = "ESCALATED"
+    CANCELLED = "CANCELLED"
+
+
+class HRRequestPriority(str, Enum):
+    """Priority level for HR requests."""
+
+    P0 = "P0"
+    P1 = "P1"
+    P2 = "P2"
+
+
+class HRRequestRiskLevel(str, Enum):
+    """Risk level for HR requests."""
+
+    HIGH = "HIGH"
+    MED = "MED"
+    LOW = "LOW"
+
+
 class PolicyEffect(str, Enum):
     """Effect of a policy rule."""
 
@@ -153,6 +181,54 @@ class TeamOverview(BaseModel):
     headcount: int
     departments: list[str]
     direct_reports: list[Employee]
+
+
+class HRRequest(BaseModel):
+    """Canonical HR request entity for all incoming HR work items."""
+
+    request_id: int
+    tenant_id: str
+
+    requester_user_id: str
+    requester_role: str
+    subject_employee_id: Optional[int] = None
+
+    type: str
+    subtype: str
+    summary: str
+    description: str
+
+    priority: HRRequestPriority
+    risk_level: HRRequestRiskLevel
+    sla_due_at: Optional[datetime] = None
+
+    status: HRRequestStatus
+    assignee_user_id: Optional[str] = None
+    required_fields: list[str] = Field(default_factory=list)
+    captured_fields: dict[str, Any] = Field(default_factory=dict)
+    missing_fields: list[str] = Field(default_factory=list)
+
+    created_at: datetime
+    updated_at: datetime
+    last_action_at: datetime
+
+    resolution_text: Optional[str] = None
+    resolution_sources: list[str] = Field(default_factory=list)
+    escalation_ticket_id: Optional[str] = None
+
+
+class HRRequestEvent(BaseModel):
+    """Append-only event in HR request audit trail."""
+
+    event_id: int
+    request_id: int
+    tenant_id: str
+    event_type: str
+    event_note: Optional[str] = None
+    actor_user_id: Optional[str] = None
+    actor_role: Optional[str] = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
 
 
 # ============================================================================

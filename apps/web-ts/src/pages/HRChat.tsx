@@ -25,6 +25,14 @@ interface Message {
   escalated?: boolean;
 }
 
+const NEW_CONVERSATION_LABEL = "New conversation";
+
+function buildConversationPreview(text: string): string {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return NEW_CONVERSATION_LABEL;
+  return cleaned.length > 40 ? `${cleaned.slice(0, 40)}...` : cleaned;
+}
+
 async function streamChat({
   messages,
   userEmail,
@@ -143,11 +151,13 @@ export default function HRChat() {
     if (!msg || !user?.email) return;
 
     const convId = convIdOverride || `conv-${Date.now()}`;
-    const preview = msg.length > 40 ? msg.slice(0, 40) + "..." : msg;
+    const preview = buildConversationPreview(msg);
 
     // Check if conversation already exists
     setConversations((prev) => {
-      if (prev.find((c) => c.id === convId)) return prev;
+      if (prev.find((c) => c.id === convId)) {
+        return prev.map((c) => (c.id === convId ? { ...c, timestamp: new Date() } : c));
+      }
       return [{ id: convId, preview: `📋 ${preview}`, timestamp: new Date() }, ...prev];
     });
     setActiveConversation(convId);
@@ -215,10 +225,25 @@ export default function HRChat() {
     let convId = activeConversation;
     if (!convId) {
       convId = `conv-${Date.now()}`;
-      const preview = msg.length > 30 ? msg.slice(0, 30) + "..." : msg;
-      setConversations((prev) => [{ id: convId!, preview, timestamp: new Date() }, ...prev]);
+      setConversations((prev) => [
+        { id: convId!, preview: NEW_CONVERSATION_LABEL, timestamp: new Date() },
+        ...prev,
+      ]);
+      setConversationMessages((cm) => ({ ...cm, [convId!]: [] }));
       setActiveConversation(convId);
     }
+    const preview = buildConversationPreview(msg);
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === convId
+          ? {
+              ...c,
+              preview: c.preview === NEW_CONVERSATION_LABEL ? preview : c.preview,
+              timestamp: new Date(),
+            }
+          : c
+      )
+    );
 
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: msg, timestamp: new Date() };
     updateMessages(convId, (prev) => [...prev, userMsg]);
@@ -294,9 +319,16 @@ export default function HRChat() {
     if (activeConversation && messages.length > 0) {
       setConversationMessages((cm) => ({ ...cm, [activeConversation]: messages }));
     }
+    const newId = `conv-${Date.now()}`;
+    setConversations((prev) => [
+      { id: newId, preview: NEW_CONVERSATION_LABEL, timestamp: new Date() },
+      ...prev,
+    ]);
+    setConversationMessages((cm) => ({ ...cm, [newId]: [] }));
     setMessages([]);
-    setActiveConversation(null);
+    setActiveConversation(newId);
     setActiveTicketId(null);
+    setInput("");
   };
 
   const handleDeleteConversation = (id: string) => {
