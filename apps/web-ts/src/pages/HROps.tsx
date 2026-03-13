@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
+  ArrowUpDown,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -12,15 +13,14 @@ import {
   Mail,
   MessageSquare,
   ShieldAlert,
-  UserMinus,
   UserPlus,
+  UserX,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -63,33 +63,40 @@ type Status =
   | "RESOLVED"
   | "ESCALATED"
   | "CANCELLED";
+type SortableQueueColumn =
+  | "priority"
+  | "requester"
+  | "summary"
+  | "type"
+  | "due"
+  | "assignee"
+  | "status";
+type SortDirection = "asc" | "desc";
+type QueueColumnSort = {
+  column: SortableQueueColumn;
+  direction: SortDirection;
+};
 
 export type HROpsQueueFilters = {
   priority: "all" | Priority;
-  requester: string;
-  summary: string;
   type: "all" | string;
   status: "all" | Status;
-  assignee: string;
+  dueSoon: "all" | "due_soon";
 };
 
 const DEFAULT_QUEUE_FILTERS: HROpsQueueFilters = {
   priority: "all",
-  requester: "",
-  summary: "",
   type: "all",
   status: "all",
-  assignee: "",
+  dueSoon: "all",
 };
 
 function countActiveQueueFilters(filters: HROpsQueueFilters): number {
   let count = 0;
   if (filters.priority !== "all") count += 1;
-  if (filters.requester.trim()) count += 1;
-  if (filters.summary.trim()) count += 1;
   if (filters.type !== "all") count += 1;
   if (filters.status !== "all") count += 1;
-  if (filters.assignee.trim()) count += 1;
+  if (filters.dueSoon !== "all") count += 1;
   return count;
 }
 
@@ -130,6 +137,16 @@ const riskOrder: Record<BackendHRRequest["risk_level"], number> = {
   HIGH: 0,
   MED: 1,
   LOW: 2,
+};
+
+const statusSortOrder: Record<Status, number> = {
+  NEW: 0,
+  READY: 1,
+  NEEDS_INFO: 2,
+  IN_PROGRESS: 3,
+  ESCALATED: 4,
+  RESOLVED: 5,
+  CANCELLED: 6,
 };
 
 function mapPriority(p: string | null | undefined): Priority {
@@ -205,6 +222,50 @@ export function sortHRQueue(items: BackendHRRequest[]): BackendHRRequest[] {
   return [...items].sort(compareHRQueueOrder);
 }
 
+function applyQueueColumnSort(
+  items: BackendHRRequest[],
+  sort: QueueColumnSort | null
+): BackendHRRequest[] {
+  if (!sort) return sortHRQueue(items);
+
+  const direction = sort.direction === "asc" ? 1 : -1;
+  const compareText = (a: string, b: string) => a.localeCompare(b);
+
+  return [...items].sort((a, b) => {
+    let value = 0;
+
+    if (sort.column === "priority") {
+      value = priorityOrder[mapPriority(a.priority)] - priorityOrder[mapPriority(b.priority)];
+    } else if (sort.column === "requester") {
+      value = compareText(
+        (a.requester_name || a.requester_user_id || "").toLowerCase(),
+        (b.requester_name || b.requester_user_id || "").toLowerCase()
+      );
+    } else if (sort.column === "summary") {
+      value = compareText(a.summary.toLowerCase(), b.summary.toLowerCase());
+    } else if (sort.column === "type") {
+      value = compareText(toTypeLabel(a).toLowerCase(), toTypeLabel(b).toLowerCase());
+    } else if (sort.column === "due") {
+      const aDue = toTimestamp(a.sla_due_at);
+      const bDue = toTimestamp(b.sla_due_at);
+      if (aDue === null && bDue === null) value = 0;
+      else if (aDue === null) value = 1;
+      else if (bDue === null) value = -1;
+      else value = aDue - bDue;
+    } else if (sort.column === "assignee") {
+      value = compareText(
+        (a.assignee_name || a.assignee_user_id || "Unassigned").toLowerCase(),
+        (b.assignee_name || b.assignee_user_id || "Unassigned").toLowerCase()
+      );
+    } else if (sort.column === "status") {
+      value = statusSortOrder[a.status] - statusSortOrder[b.status];
+    }
+
+    if (value !== 0) return value * direction;
+    return compareHRQueueOrder(a, b);
+  });
+}
+
 export function isBlockedNeedsInfo(item: BackendHRRequest): boolean {
   return item.status === "NEEDS_INFO" || (item.missing_fields?.length ?? 0) > 0;
 }
@@ -259,30 +320,11 @@ export function matchesHROpsQueueFilters(
   const priority = mapPriority(item.priority);
   if (filters.priority !== "all" && priority !== filters.priority) return false;
 
-  if (filters.requester.trim()) {
-    const requesterNeedle = filters.requester.trim().toLowerCase();
-    const requesterHaystack = `${item.requester_name || ""} ${item.requester_user_id || ""}`.toLowerCase();
-    if (!requesterHaystack.includes(requesterNeedle)) return false;
-  }
-
-  if (filters.summary.trim()) {
-    const summaryNeedle = filters.summary.trim().toLowerCase();
-    if (!item.summary.toLowerCase().includes(summaryNeedle)) return false;
-  }
-
   if (filters.type !== "all" && toTypeLabel(item) !== filters.type) return false;
 
   if (filters.status !== "all" && item.status !== filters.status) return false;
 
-  if (filters.assignee.trim()) {
-    const assigneeNeedle = filters.assignee.trim().toLowerCase();
-    const assigneeHaystack = (
-      item.assignee_name ||
-      item.assignee_user_id ||
-      "Unassigned"
-    ).toLowerCase();
-    if (!assigneeHaystack.includes(assigneeNeedle)) return false;
-  }
+  if (filters.dueSoon === "due_soon" && !isDueSoon(item)) return false;
 
   return true;
 }
@@ -328,6 +370,7 @@ export default function HROps() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [queueFilters, setQueueFilters] = useState<HROpsQueueFilters>(DEFAULT_QUEUE_FILTERS);
+  const [queueSort, setQueueSort] = useState<QueueColumnSort | null>(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<BackendHRRequest[]>([]);
   const [detailById, setDetailById] = useState<Record<number, BackendHRRequestDetail>>({});
@@ -457,27 +500,51 @@ export default function HROps() {
     [queueFilters]
   );
 
-  const assignedToMeAll = filtered.filter(
+  const toggleQueueSort = useCallback((column: SortableQueueColumn) => {
+    setQueueSort((prev) => {
+      if (!prev || prev.column !== column) {
+        return { column, direction: "asc" };
+      }
+      if (prev.direction === "asc") {
+        return { column, direction: "desc" };
+      }
+      return null;
+    });
+  }, []);
+
+  const renderSortIcon = useCallback(
+    (column: SortableQueueColumn) => {
+      if (!queueSort || queueSort.column !== column) {
+        return (
+          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        );
+      }
+      return queueSort.direction === "asc" ? (
+        <ChevronUp className="h-3.5 w-3.5 text-primary" />
+      ) : (
+        <ChevronDown className="h-3.5 w-3.5 text-primary" />
+      );
+    },
+    [queueSort]
+  );
+
+  const ariaSortValue = useCallback(
+    (column: SortableQueueColumn): "none" | "ascending" | "descending" => {
+      if (!queueSort || queueSort.column !== column) return "none";
+      return queueSort.direction === "asc" ? "ascending" : "descending";
+    },
+    [queueSort]
+  );
+
+  const assignedToMeAll = items.filter(
     (item) => (item.assignee_user_id || "").toLowerCase() === currentUserEmail
   );
-  const unresolved = filtered.filter(
-    (item) => item.status !== "RESOLVED" && item.status !== "CANCELLED"
-  );
-  const closed = filtered.filter(
-    (item) => item.status === "RESOLVED" || item.status === "CANCELLED"
-  );
-  const needsInfo = unresolved.filter((item) => isBlockedNeedsInfo(item));
-  const escalated = unresolved.filter((item) => item.status === "ESCALATED");
-  const dueSoon = unresolved.filter((item) => isDueSoon(item));
-  const unassigned = unresolved.filter((item) => !item.assignee_user_id);
-  const assignedToMe = unresolved.filter(
-    (item) => (item.assignee_user_id || "").toLowerCase() === currentUserEmail
-  );
-  const assignedToOthers = unresolved.filter(
-    (item) =>
-      !!item.assignee_user_id &&
-      (item.assignee_user_id || "").toLowerCase() !== currentUserEmail
-  );
+  const queueRows = useMemo(() => applyQueueColumnSort(filtered, queueSort), [filtered, queueSort]);
+  const pendingCount = filtered.filter(
+    (item) => item.status === "NEW" || item.status === "READY" || item.status === "ESCALATED"
+  ).length;
+  const inProgressCount = filtered.filter((item) => item.status === "IN_PROGRESS").length;
+  const inReviewCount = filtered.filter((item) => item.status === "NEEDS_INFO").length;
 
   const assignedRequests = sortHRQueue(assignedToMeAll).map((item) =>
     toMyRequest(item, detailById[item.request_id] || null)
@@ -531,8 +598,9 @@ export default function HROps() {
             <div>
               <h1 className="text-2xl font-bold mb-1">HR Request Queue</h1>
               <p className="text-muted-foreground text-sm">
-                {filtered.length} shown ({items.length} total) · {unresolved.length} active ·{" "}
-                {closed.length} closed
+                {pendingCount} pending · {inProgressCount} in progress · {inReviewCount} in review
+                {" · "}
+                {filtered.length} total
               </p>
             </div>
           </div>
@@ -567,7 +635,7 @@ export default function HROps() {
 
           {showFilters && (
             <div className="mb-6 rounded-xl border bg-card p-3">
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <Select
                   value={queueFilters.priority}
                   onValueChange={(value) =>
@@ -587,26 +655,6 @@ export default function HROps() {
                     <SelectItem value="P2">P2</SelectItem>
                   </SelectContent>
                 </Select>
-
-                <Input
-                  value={queueFilters.requester}
-                  onChange={(e) =>
-                    setQueueFilters((prev) => ({ ...prev, requester: e.target.value }))
-                  }
-                  placeholder="Requester"
-                  className="h-9 text-sm"
-                  aria-label="Filter by requester"
-                />
-
-                <Input
-                  value={queueFilters.summary}
-                  onChange={(e) =>
-                    setQueueFilters((prev) => ({ ...prev, summary: e.target.value }))
-                  }
-                  placeholder="Summary"
-                  className="h-9 text-sm"
-                  aria-label="Filter by summary"
-                />
 
                 <Select
                   value={queueFilters.type}
@@ -651,15 +699,23 @@ export default function HROps() {
                   </SelectContent>
                 </Select>
 
-                <Input
-                  value={queueFilters.assignee}
-                  onChange={(e) =>
-                    setQueueFilters((prev) => ({ ...prev, assignee: e.target.value }))
+                <Select
+                  value={queueFilters.dueSoon}
+                  onValueChange={(value) =>
+                    setQueueFilters((prev) => ({
+                      ...prev,
+                      dueSoon: value as HROpsQueueFilters["dueSoon"],
+                    }))
                   }
-                  placeholder='Assignee / "unassigned"'
-                  className="h-9 text-sm"
-                  aria-label="Filter by assignee"
-                />
+                >
+                  <SelectTrigger className="h-9 text-sm" aria-label="Filter by due soon">
+                    <SelectValue placeholder="Due soon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All due windows</SelectItem>
+                    <SelectItem value="due_soon">{`Due soon (${DUE_SOON_HOURS}h)`}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
@@ -667,152 +723,226 @@ export default function HROps() {
           {loading ? (
             <div className="text-sm text-muted-foreground">Loading queue...</div>
           ) : (
-            <div className="space-y-5">
-              {[
-                { label: "Needs Info", rows: sortHRQueue(needsInfo) },
-                { label: `Due Soon (${DUE_SOON_HOURS}h)`, rows: sortHRQueue(dueSoon) },
-                { label: "Escalated", rows: sortHRQueue(escalated) },
-                { label: "Unassigned", rows: sortHRQueue(unassigned) },
-                { label: "Assigned to Me", rows: sortHRQueue(assignedToMe) },
-                { label: "Assigned to Others", rows: sortHRQueue(assignedToOthers) },
-                { label: "Closed", rows: sortHRQueue(closed) },
-              ].map((section) => (
-                <div key={section.label} className="bg-card border rounded-xl shadow-soft overflow-hidden">
-                  <div className="px-4 py-3 border-b bg-muted/20 text-sm font-semibold">
-                    {section.label} ({section.rows.length})
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30">
-                        <TableHead className="w-[110px]">Priority</TableHead>
-                        <TableHead>Requester</TableHead>
-                        <TableHead className="max-w-[320px]">Summary</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="min-w-[170px]">Due</TableHead>
-                        <TableHead>Assignee</TableHead>
-                        <TableHead className="w-[60px]" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {section.rows.map((item) => {
-                        const requestId = item.request_id;
-                        const isExpanded = expandedId === requestId;
-                        const priority = mapPriority(item.priority);
-                        const pConfig = priorityConfig[priority];
-                        const status = item.status as Status;
-                        const sConfig = statusConfig[status];
-                        const dueSoonFlag = isDueSoon(item);
-                        const dueAtTs = toTimestamp(item.sla_due_at);
-                        const remainingHours =
-                          dueAtTs === null
-                            ? null
-                            : Math.ceil((dueAtTs - Date.now()) / (1000 * 60 * 60));
-                        const isOverdue = remainingHours !== null && remainingHours < 0;
-                        const detail = detailById[requestId];
-                        const isMine =
-                          (item.assignee_user_id || "").toLowerCase() === currentUserEmail;
-                        const missingFields = detail?.missing_fields || [];
-                        const agentSuggestionRaw =
-                          detail?.request?.captured_fields?.["agent_suggestion"] ??
-                          item.captured_fields?.["agent_suggestion"];
-                        const agentSuggestion =
-                          typeof agentSuggestionRaw === "string" && agentSuggestionRaw.trim()
-                            ? agentSuggestionRaw
-                            : null;
+            <div className="bg-card border rounded-xl shadow-soft overflow-hidden">
+              <div className="px-4 py-3 border-b bg-muted/20 text-sm font-semibold">
+                Queue ({queueRows.length})
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="w-[110px]" aria-sort={ariaSortValue("priority")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("priority")}
+                      >
+                        Priority {renderSortIcon("priority")}
+                      </button>
+                    </TableHead>
+                    <TableHead aria-sort={ariaSortValue("requester")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("requester")}
+                      >
+                        Requester {renderSortIcon("requester")}
+                      </button>
+                    </TableHead>
+                    <TableHead className="max-w-[320px]" aria-sort={ariaSortValue("summary")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("summary")}
+                      >
+                        Summary {renderSortIcon("summary")}
+                      </button>
+                    </TableHead>
+                    <TableHead aria-sort={ariaSortValue("type")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("type")}
+                      >
+                        Type {renderSortIcon("type")}
+                      </button>
+                    </TableHead>
+                    <TableHead className="min-w-[170px]" aria-sort={ariaSortValue("due")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("due")}
+                      >
+                        Due {renderSortIcon("due")}
+                      </button>
+                    </TableHead>
+                    <TableHead aria-sort={ariaSortValue("assignee")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("assignee")}
+                      >
+                        Assignee {renderSortIcon("assignee")}
+                      </button>
+                    </TableHead>
+                    <TableHead className="w-[220px]">Actions</TableHead>
+                    <TableHead aria-sort={ariaSortValue("status")}>
+                      <button
+                        type="button"
+                        className="group inline-flex items-center gap-1 rounded-sm px-0 py-0 text-sm font-semibold text-foreground/90 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => toggleQueueSort("status")}
+                      >
+                        Status {renderSortIcon("status")}
+                      </button>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {queueRows.map((item) => {
+                    const requestId = item.request_id;
+                    const isExpanded = expandedId === requestId;
+                    const priority = mapPriority(item.priority);
+                    const pConfig = priorityConfig[priority];
+                    const status = item.status as Status;
+                    const sConfig = statusConfig[status];
+                    const dueSoonFlag = isDueSoon(item);
+                    const dueAtTs = toTimestamp(item.sla_due_at);
+                    const remainingHours =
+                      dueAtTs === null
+                        ? null
+                        : Math.ceil((dueAtTs - Date.now()) / (1000 * 60 * 60));
+                    const isOverdue = remainingHours !== null && remainingHours < 0;
+                    const detail = detailById[requestId];
+                    const isMine =
+                      (item.assignee_user_id || "").toLowerCase() === currentUserEmail;
+                    const canAssign = item.status !== "RESOLVED" && item.status !== "CANCELLED";
+                    const isResolved = item.status === "RESOLVED";
+                    const missingFields = detail?.missing_fields || [];
+                    const agentSuggestionRaw =
+                      detail?.request?.captured_fields?.["agent_suggestion"] ??
+                      item.captured_fields?.["agent_suggestion"];
+                    const agentSuggestion =
+                      typeof agentSuggestionRaw === "string" && agentSuggestionRaw.trim()
+                        ? agentSuggestionRaw
+                        : null;
 
-                        return (
-                          <Fragment key={requestId}>
-                            <TableRow
-                              className={`cursor-pointer hover:bg-muted/30 ${isMine ? "bg-primary/5" : ""}`}
-                              onClick={() => void handleExpand(requestId)}
-                            >
-                              <TableCell>
-                                <Badge variant="outline" className={`text-xs ${pConfig.className}`}>
-                                  {pConfig.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-medium text-sm">
-                                {item.requester_name || item.requester_user_id}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground max-w-[320px] truncate">
-                                {item.summary}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs">
-                                  {item.type} / {item.subtype}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <Badge variant="secondary" className="text-xs gap-1">
-                                    <sConfig.icon className={`h-3 w-3 ${sConfig.color}`} />
-                                    {sConfig.label}
-                                  </Badge>
-                                  {dueSoonFlag && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] border-amber-300 text-amber-700 bg-amber-50"
-                                    >
-                                      Due Soon
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs">
-                                <div className="flex flex-col">
-                                  <span
-                                    className={
-                                      isOverdue
-                                        ? "font-medium text-destructive"
-                                        : dueSoonFlag
-                                        ? "font-medium text-amber-700"
-                                        : "text-muted-foreground"
-                                    }
-                                  >
-                                    {remainingHours === null
-                                      ? "No SLA"
-                                      : isOverdue
-                                      ? `${Math.abs(remainingHours)}h overdue`
-                                      : `${remainingHours}h left`}
-                                  </span>
-                                  {item.sla_due_at && (
-                                    <span className="text-[10px] text-muted-foreground">
-                                      Due {formatDateTime(item.sla_due_at)}
-                                    </span>
-                                  )}
-                                  {dueSoonFlag && !isOverdue && (
-                                    <span className="text-[10px] text-amber-700">
-                                      Within 24h
-                                    </span>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {item.assignee_name || item.assignee_user_id || "Unassigned"}
-                              </TableCell>
-                              <TableCell>
-                                {isExpanded ? (
-                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </TableCell>
-                            </TableRow>
+                    return (
+                      <Fragment key={requestId}>
+                        <TableRow
+                          className={`cursor-pointer hover:bg-muted/30 ${isMine ? "bg-primary/5" : ""}`}
+                          onClick={() => void handleExpand(requestId)}
+                        >
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${pConfig.className}`}>
+                              {pConfig.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {item.requester_name || item.requester_user_id}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[320px] truncate">
+                            {item.summary}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {item.type} / {item.subtype}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-col">
+                              <span
+                                className={
+                                  isOverdue
+                                    ? "font-medium text-destructive"
+                                    : dueSoonFlag
+                                    ? "font-medium text-amber-700"
+                                    : "text-muted-foreground"
+                                }
+                              >
+                                {remainingHours === null
+                                  ? "No SLA"
+                                  : isOverdue
+                                  ? `${Math.abs(remainingHours)}h overdue`
+                                  : `${remainingHours}h left`}
+                              </span>
+                              {item.sla_due_at && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  Due {formatDateTime(item.sla_due_at)}
+                                </span>
+                              )}
+                              {dueSoonFlag && !isOverdue && (
+                                <span className="text-[10px] text-amber-700">Within 24h</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {item.assignee_name || item.assignee_user_id || "Unassigned"}
+                          </TableCell>
+                          <TableCell>
+                            {!isResolved && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant={isMine ? "secondary" : "outline"}
+                                  className="h-8 px-3 text-xs"
+                                  disabled={!canAssign}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!canAssign) return;
+                                    void runAction(
+                                      requestId,
+                                      () =>
+                                        assignHRRequest(
+                                          user!.email,
+                                          requestId,
+                                          isMine ? null : currentUserEmail
+                                        ),
+                                      isMine ? "Request unassigned" : "Assigned to you"
+                                    );
+                                  }}
+                                >
+                                  {isMine ? "Unassign" : "Assign to me"}
+                                </Button>
 
-                            {isExpanded && (
-                              <TableRow>
-                                <TableCell colSpan={8} className="bg-muted/10 p-0">
-                                  <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="px-6 py-4 space-y-4"
-                                  >
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleExpand(requestId);
+                                  }}
+                                  aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <sConfig.icon className={`h-3 w-3 ${sConfig.color}`} />
+                              {sConfig.label}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={8} className="bg-muted/10 p-0">
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="px-6 py-4 space-y-4"
+                              >
                                     <div className="grid md:grid-cols-2 gap-4">
                                       <div className="space-y-4">
                                         <div>
                                           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                            Request Detail
+                                            Employee Question
                                           </h4>
                                           <p className="text-sm bg-card rounded-lg p-3 border whitespace-pre-wrap">
                                             {item.description}
@@ -820,7 +950,7 @@ export default function HROps() {
                                         </div>
                                         <div>
                                           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                            Resolution / Latest Context
+                                            AI-Drafted Response
                                           </h4>
                                           <div className="text-sm bg-accent/30 rounded-lg p-3 whitespace-pre-wrap border border-primary/10">
                                             {item.resolution_text || item.last_message_to_requester || "No resolution context yet."}
@@ -925,149 +1055,142 @@ export default function HROps() {
                                       />
                                     </div>
 
-                                    <div className="flex flex-wrap gap-2">
-                                      {!isMine ? (
+                                    {!isResolved && (
+                                      <div className="flex flex-wrap gap-2">
                                         <Button
                                           size="sm"
-                                          variant="outline"
+                                          variant={isMine ? "secondary" : "outline"}
+                                          disabled={!canAssign}
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            void runAction(
-                                              requestId,
-                                              () => assignHRRequest(user!.email, requestId, user!.email),
-                                              "Assigned to you"
-                                            );
-                                          }}
-                                        >
-                                          <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-                                          Assign to me
-                                        </Button>
-                                      ) : (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            void runAction(
-                                              requestId,
-                                              () => assignHRRequest(user!.email, requestId, null),
-                                              "Unassigned"
-                                            );
-                                          }}
-                                        >
-                                          <UserMinus className="h-3.5 w-3.5 mr-1.5" />
-                                          Unassign
-                                        </Button>
-                                      )}
-
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const note = messageDraft[requestId]?.trim();
-                                          if (!note) {
-                                            toast.error("Please enter a message first.");
-                                            return;
-                                          }
-                                          void runAction(
-                                            requestId,
-                                            () => messageHRRequestRequester(user!.email, requestId, note),
-                                            "Requester message logged"
-                                          );
-                                        }}
-                                      >
-                                        <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                                        Message requester
-                                      </Button>
-
-                                      {(item.status === "NEW" || item.status === "READY" || item.status === "NEEDS_INFO") && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            void runAction(
-                                              requestId,
-                                              () => transitionHRRequestStatus(user!.email, requestId, "IN_PROGRESS"),
-                                              "Moved to In Progress"
-                                            );
-                                          }}
-                                        >
-                                          <Clock className="h-3.5 w-3.5 mr-1.5" />
-                                          Move to In Progress
-                                        </Button>
-                                      )}
-
-                                      {(item.status === "IN_PROGRESS" || item.status === "ESCALATED") && (
-                                        <Button
-                                          size="sm"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
+                                            if (!canAssign) return;
                                             void runAction(
                                               requestId,
                                               () =>
-                                                transitionHRRequestStatus(
+                                                assignHRRequest(
                                                   user!.email,
                                                   requestId,
-                                                  "RESOLVED",
-                                                  resolutionNotes[requestId]?.trim() || undefined
+                                                  isMine ? null : currentUserEmail
                                                 ),
-                                              "Marked resolved"
+                                              isMine ? "Request unassigned" : "Assigned to you"
                                             );
                                           }}
                                         >
-                                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                          Mark resolved
+                                          {isMine ? (
+                                            <UserX className="h-3.5 w-3.5 mr-1.5" />
+                                          ) : (
+                                            <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                                          )}
+                                          {isMine ? "Unassign" : "Assign to me"}
                                         </Button>
-                                      )}
 
-                                      {item.status !== "RESOLVED" && item.status !== "CANCELLED" && item.status !== "ESCALATED" && (
                                         <Button
                                           size="sm"
                                           variant="outline"
                                           onClick={(e) => {
                                             e.stopPropagation();
+                                            const note = messageDraft[requestId]?.trim();
+                                            if (!note) {
+                                              toast.error("Please enter a message first.");
+                                              return;
+                                            }
                                             void runAction(
                                               requestId,
-                                              () =>
-                                                escalateHRRequest(
-                                                  user!.email,
-                                                  requestId,
-                                                  resolutionNotes[requestId]?.trim() || undefined
-                                                ),
-                                              "Escalated request"
+                                              () => messageHRRequestRequester(user!.email, requestId, note),
+                                              "Requester message logged"
                                             );
                                           }}
                                         >
-                                          <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
-                                          Escalate
+                                          <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                                          Message requester
                                         </Button>
-                                      )}
 
-                                      {(item.status === "RESOLVED" || item.status === "CANCELLED") && (
-                                        <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                                          <CheckCircle2 className="h-3.5 w-3.5" />
-                                          Closed
-                                        </span>
-                                      )}
-                                    </div>
+                                        {(item.status === "NEW" || item.status === "READY" || item.status === "NEEDS_INFO") && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void runAction(
+                                                requestId,
+                                                () => transitionHRRequestStatus(user!.email, requestId, "IN_PROGRESS"),
+                                                "Moved to In Progress"
+                                              );
+                                            }}
+                                          >
+                                            <Clock className="h-3.5 w-3.5 mr-1.5" />
+                                            Move to In Progress
+                                          </Button>
+                                        )}
+
+                                        {(item.status === "IN_PROGRESS" || item.status === "ESCALATED") && (
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void runAction(
+                                                requestId,
+                                                () =>
+                                                  transitionHRRequestStatus(
+                                                    user!.email,
+                                                    requestId,
+                                                    "RESOLVED",
+                                                    resolutionNotes[requestId]?.trim() || undefined
+                                                  ),
+                                                "Marked resolved"
+                                              );
+                                            }}
+                                          >
+                                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                            Mark resolved
+                                          </Button>
+                                        )}
+
+                                        {item.status !== "RESOLVED" && item.status !== "CANCELLED" && item.status !== "ESCALATED" && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void runAction(
+                                                requestId,
+                                                () =>
+                                                  escalateHRRequest(
+                                                    user!.email,
+                                                    requestId,
+                                                    resolutionNotes[requestId]?.trim() || undefined
+                                                  ),
+                                                "Escalated request"
+                                              );
+                                            }}
+                                          >
+                                            <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                                            Escalate
+                                          </Button>
+                                        )}
+
+                                        {(item.status === "RESOLVED" || item.status === "CANCELLED") && (
+                                          <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                            Closed
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
 
                                     <div className="text-xs text-muted-foreground">
                                       <FileText className="h-3.5 w-3.5 inline mr-1" />
                                       Last update: {formatDateTime(item.updated_at)}
                                     </div>
-                                  </motion.div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </Fragment>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              ))}
+                              </motion.div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>

@@ -30,7 +30,7 @@ services:
     autoDeploy: true
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://pinghr-api.onrender.com
+        value: https://pinghr-api.com
     routes:
       - type: rewrite
         source: /*

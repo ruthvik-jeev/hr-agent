@@ -70,15 +70,17 @@ function makeRequest(overrides?: Partial<BackendHRRequest>): BackendHRRequest {
 
 describe("matchesHROpsQueueFilters", () => {
   it("matches column filters across all supported fields", () => {
-    const item = makeRequest({ status: "IN_PROGRESS", priority: "P0" });
+    const item = makeRequest({
+      status: "IN_PROGRESS",
+      priority: "P0",
+      sla_due_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    });
     expect(
       matchesHROpsQueueFilters(item, {
         priority: "P0",
-        requester: "alex",
-        summary: "payroll",
         type: "ESCALATION / PAYROLL",
         status: "IN_PROGRESS",
-        assignee: "jordan",
+        dueSoon: "due_soon",
       })
     ).toBe(true);
   });
@@ -88,32 +90,29 @@ describe("matchesHROpsQueueFilters", () => {
     expect(
       matchesHROpsQueueFilters(item, {
         priority: "P2",
-        requester: "",
-        summary: "",
         type: "all",
         status: "all",
-        assignee: "",
+        dueSoon: "all",
       })
     ).toBe(false);
     expect(
       matchesHROpsQueueFilters(item, {
         priority: "all",
-        requester: "",
-        summary: "",
         type: "all",
         status: "RESOLVED",
-        assignee: "",
+        dueSoon: "all",
       })
     ).toBe(false);
     expect(
-      matchesHROpsQueueFilters(item, {
-        priority: "all",
-        requester: "",
-        summary: "",
-        type: "all",
-        status: "all",
-        assignee: "unassigned",
-      })
+      matchesHROpsQueueFilters(
+        makeRequest({ sla_due_at: "2026-03-15T10:00:00", status: "IN_PROGRESS" }),
+        {
+          priority: "all",
+          type: "all",
+          status: "all",
+          dueSoon: "due_soon",
+        }
+      )
     ).toBe(false);
   });
 });
